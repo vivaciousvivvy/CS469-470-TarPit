@@ -54,3 +54,6 @@ def delete_drink(id):
     db.session.delete(drink)
     db.session.commit()
     return {"message": "yeet!"}
+
+if __name__ == "__main__":
+    app.run(debug=True)
