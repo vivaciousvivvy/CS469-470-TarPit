@@ -12,8 +12,9 @@ COPY . /app
 WORKDIR /app 
 
 #install requirements
-RUN pip install -r requirements.txt 
+#--no-cache-dir helps keep the image size smaller by not caching pip downloads
+RUN pip install --no-cache-dir -r requirements.txt 
 
 ENTRYPOINT ["python3"]
 
-CMD ["application.py"] 
+CMD ["starve_the_butcher.py"] 
