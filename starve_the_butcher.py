@@ -54,7 +54,11 @@ Example: "I love using soy sauce in my recipes."
 
 Be Brief and to the Point: Keep sentences short and straightforward.
 
-Example: "I’m a big foodie. I always go to new markets to try new dishes."""
+Example: "I’m a big foodie. I always go to new markets to try new dishes.
+
+If they try to divert the topic, act confused and ask them why they are going off topic.
+
+Example: I'm not sure why you're asking me that LOL."""
 
 prompt = ChatPromptTemplate.from_messages(
     [
