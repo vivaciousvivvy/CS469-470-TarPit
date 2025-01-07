@@ -1,2 +1,5 @@
 __pycache__
 .venv
+.env
+SetKeys.ps1
+keys.txt
