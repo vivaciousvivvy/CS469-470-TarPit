@@ -15,6 +15,8 @@ WORKDIR /app
 #--no-cache-dir helps keep the image size smaller by not caching pip downloads
 RUN pip install --no-cache-dir -r requirements.txt 
 
+EXPOSE 8080
+
 ENTRYPOINT ["python3"]
 
 CMD ["slack_bot.py"] 
