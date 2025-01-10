@@ -1,7 +1,7 @@
 import os
 import requests
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -19,14 +19,44 @@ from flask import Flask, request, jsonify
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack.signature import SignatureVerifier
+from slack_bolt.adapter.flask import SlackRequestHandler
+from slack_bolt import App
 
 
-app = Flask(__name__)
 
-# Set up Slack client and signature verifier
-slack_token = os.getenv("SLACK_BOT_TOKEN")
-client = WebClient(token=slack_token)
-verifier = SignatureVerifier(os.getenv("SLACK_SIGNING_SECRET"))
+
+# Set Slack API credentials
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+# Initialize Slack WebClient with the bot token
+client = WebClient(token=SLACK_BOT_TOKEN)
+
+
+SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
+verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
+SLACK_BOT_USER_ID = os.environ["SLACK_BOT_USER_ID"]
+
+
+# Initialize the Slack app
+app = App(token=SLACK_BOT_TOKEN)
+
+# Initialize the Flask app
+flask_app = Flask(__name__)
+handler = SlackRequestHandler(app)
+
+# %%
+def get_bot_user_id():
+    """
+    Get the bot user ID using the Slack API.
+    Returns:
+        str: The bot user ID.
+    """
+    try:
+        # Initialize the Slack client with your bot token
+        slack_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
+        response = slack_client.auth_test()
+        return response["user_id"]
+    except SlackApiError as e:
+        print(f"Error: {e}")
 
 
 # Create the LLM
@@ -112,68 +142,31 @@ with_message_history = RunnableWithMessageHistory(
 
 config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
-# Handle Slack events (messages)
-@app.route("/slack/events", methods=["POST"])
-def slack_events():
-    # First, check the challenge parameter from Slack's verification request
-    slack_event = request.json
-    
-    # If it's the challenge request, respond with the challenge value
-    if "challenge" in slack_event:
-        return jsonify({"challenge": slack_event["challenge"]})
-
-    # Now check the validity of the Slack request
-    if not verifier.is_valid_request(request.data, request.headers):
-        return "Invalid request", 400
-
-    # Respond to a message event
-    if "event" in slack_event:
-        event = slack_event["event"]
-        user_id = event.get("user")
-        text = event.get("text")
-        
-        if user_id and text:
-            # Handle the message (you can call your message handler function here)
-            response = handle_message(text, user_id)
-            return jsonify(response)
-
-    return "OK", 200
-
-
-# Function to handle messages and send a response to Slack
-def handle_message(user_input, user_id):
-    config = {"configurable": {"session_id": user_id}}
+# Slack Message Handler
+@app.event("message")
+def handle_message_event(body, say):
+    try:
+        user = body["event"]["user"]
+        text = body["event"]["text"]
+    except KeyError:
+        say("Sorry, I couldn't process your message.")
+        return
+    session_id = user
 
     response = with_message_history.invoke(
-        {"messages": [HumanMessage(content=user_input)]},
-        config=config,
+        {"messages": [HumanMessage(content=text)]},
+        config={"configurable": {"session_id": session_id}},
     )
 
-    message_text = response.content
-    return send_message_to_slack(message_text, user_id)
+    say(response.content)
 
-# Send message to Slack
-def send_message_to_slack(text, user_id):
-    try:
-        # Send message to Slack channel or user (user_id for direct message)
-        client.chat_postMessage(channel=user_id, text=text)
-        return {"status": "success"}
-    except SlackApiError as e:
-        print(f"Error sending message: {e.response['error']}")
-        return {"status": "failure", "error": e.response['error']}
 
-# Slack command to trigger the bot
-@app.route("/slack/command", methods=["POST"])
-def slack_command():
-    if not verifier.is_valid_request(request.data, request.headers):
-        return "Invalid request", 400
-
-    command_data = request.form
-    user_input = command_data.get("text")
-    user_id = command_data.get("user_id")
-
-    # Handle the incoming message from the Slack command
-    return handle_message(user_input, user_id)
+# Flask route for Slack events
+@flask_app.route("/slack/events", methods=["POST"])
+def slack_events():
+    return handler.handle(request)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    flask_app.run(host="0.0.0.0", port=8080)
+
+# %%
