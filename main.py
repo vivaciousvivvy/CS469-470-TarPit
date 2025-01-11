@@ -20,7 +20,7 @@ SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
 
 # Initialize Slack client and signature verifier
 client = WebClient(token=SLACK_BOT_TOKEN)
-verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
+
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -99,14 +99,14 @@ config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
 # Slack command handler
 def slack_handler(request):
-    # Extract headers
+
     slack_signature = request.headers.get("X-Slack-Signature", "")
     slack_timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
+    request_body = request.get_data(as_binary=True)
+    verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
-    # Verify Slack request signature
-    request_body = request.get_data(as_text=True)
     if not verifier.is_valid_request(request_body, slack_signature, slack_timestamp):
-        return jsonify({"error": "Invalid request signature"}), 403
+        raise ValueError("Invalid Slack request")
 
     # Parse incoming Slack request
     data = request.form
