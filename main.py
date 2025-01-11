@@ -180,16 +180,21 @@ async def slack_handler(request):
     return jsonify({"text": "Unknown command"}), 400
 
 
+def slack_handler_sync(request):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(slack_handler(request))
+
 # Google Cloud Function entry point
 @functions_framework.http
-async def slack_bot(request):
+def slack_bot(request):
     # Ensure only POST requests are processed
     if request.method != 'POST':
         return jsonify({"error": "Only POST requests are accepted"}), 405
 
     try:
         # Pass the request to the Slack handler
-        response = await slack_handler(request)
+        response = slack_handler_sync(request)
         return response
     except ValueError as e:
         # Handle invalid Slack requests
