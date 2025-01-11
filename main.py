@@ -133,7 +133,19 @@ def slack_handler(request):
 
 # Google Cloud Function entry point
 def slack_bot(request):
-    # Process incoming HTTP request
-    if request.method == "POST":
-        return slack_handler(request)
-    return jsonify({"error": "Invalid request method"}), 405
+    # Ensure only POST requests are processed
+    if request.method != 'POST':
+        return jsonify({"error": "Only POST requests are accepted"}), 405
+
+    try:
+        # Pass the request to the Slack handler
+        response = slack_handler(request)
+        return response
+    except ValueError as e:
+        # Handle invalid Slack requests
+        return jsonify({"error": str(e)}), 403
+    except Exception as e:
+        # Catch any unexpected errors and log them
+        print(f"Error: {str(e)}")
+        return jsonify({"error": "An internal server error occurred"}), 500
+
