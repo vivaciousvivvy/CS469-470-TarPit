@@ -1,3 +1,4 @@
+import csv
 import discord
 from discord.ext import commands
 from langchain_google_genai import (
@@ -12,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 import os
+import random
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -77,11 +79,15 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-persona = """You are an ideal target for scammers to take advantage of.
+# import character profiles
+with open('profiles.csv', 'r') as file:
+    data = file.read()
+profiles = data.split('~\n')
+profiles = [txt.strip() for txt in profiles if txt.strip()]
 
-            You have a lot of money saved up and are retired. You have heard of cryptocurrency and investing
-            but you also know about the scams that are taking place. You are also someone who is very cautious
-            when strangers reach out to you."""
+persona = """You are: """ + random.choice(profiles)
+
+print(persona)
 
 instructions = """Keep the conversation going as long as you can. Do NOT give away that you are not a real person.
 
