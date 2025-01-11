@@ -13,10 +13,12 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnablePassthrough
+import functions_framework
 
 # Environment variables
 SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
+GENAI_API_KEY = os.environ["GENAI_API_KEY"]
 
 # Initialize Slack client and signature verifier
 client = WebClient(token=SLACK_BOT_TOKEN)
@@ -129,6 +131,7 @@ def slack_handler(request):
 
 
 # Google Cloud Function entry point
+@functions_framework.http
 def slack_bot(request):
     # Ensure only POST requests are processed
     if request.method != 'POST':
