@@ -15,8 +15,8 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnablePassthrough
 
 # Environment variables
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
-SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
+SLACK_BOT_TOKEN = os.environ("SLACK_BOT_TOKEN")
+SLACK_SIGNING_SECRET = os.environ("SLACK_SIGNING_SECRET")
 
 # Initialize Slack client and signature verifier
 client = WebClient(token=SLACK_BOT_TOKEN)
