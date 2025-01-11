@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnablePassthrough
 import functions_framework
+import asyncio
 
 # Environment variables
 SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
@@ -100,7 +101,7 @@ with_message_history = RunnableWithMessageHistory(
 config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
 # Slack command handler
-def slack_handler(request):
+'''def slack_handler(request):
     request_body = request.get_data()
     verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
@@ -148,4 +149,52 @@ def slack_bot(request):
         # Catch any unexpected errors and log them
         print(f"Error: {str(e)}")
         return jsonify({"error": "An internal server error occurred"}), 500
+'''
 
+async def slack_handler(request):
+    request_body = await request.get_data()
+    verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
+
+    if not verifier.is_valid_request(request_body, request.headers):
+        raise ValueError("Invalid Slack request")
+
+    # Parse incoming Slack request
+    data = request.form
+    if data.get("command") == "/butcher":
+        user_id = data.get("user_id")
+        text = data.get("text")  # The user's message
+        session_id = user_id  # Use user ID as the session ID
+
+        # Continue conversation based on user input
+        response = await with_message_history.invoke(
+            {"messages": [HumanMessage(content=text)]},
+            config={"configurable": {"session_id": session_id}},
+        )
+
+        # Respond to the user
+        return jsonify({
+            "response_type": "in_channel",
+            "text": response.content,
+        })
+
+    return jsonify({"text": "Unknown command"}), 400
+
+
+# Google Cloud Function entry point
+@functions_framework.http
+async def slack_bot(request):
+    # Ensure only POST requests are processed
+    if request.method != 'POST':
+        return jsonify({"error": "Only POST requests are accepted"}), 405
+
+    try:
+        # Pass the request to the Slack handler
+        response = await slack_handler(request)
+        return response
+    except ValueError as e:
+        # Handle invalid Slack requests
+        return jsonify({"error": str(e)}), 403
+    except Exception as e:
+        # Catch any unexpected errors and log them
+        print(f"Error: {str(e)}")
+        return jsonify({"error": "An internal server error occurred"}), 500
