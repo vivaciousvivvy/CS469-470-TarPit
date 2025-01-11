@@ -102,7 +102,7 @@ def slack_handler(request):
 
     slack_signature = request.headers.get("X-Slack-Signature", "")
     slack_timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
-    request_body = request.get_data(as_binary=True)
+    request_body = request.get_data()
     verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
     if not verifier.is_valid_request(request_body, slack_signature, slack_timestamp):
