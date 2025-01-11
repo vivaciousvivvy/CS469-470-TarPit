@@ -1,22 +1,20 @@
-FROM python:3.10-slim
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
-RUN apt-get update -y 
-RUN apt-get install -y python3-pip 
+# Set the working directory in the container
+WORKDIR /app
 
-# Clean up apt cache to reduce image size
-RUN rm -rf /var/lib/apt/lists/*
+# Copy the current directory contents into the container
+COPY . /app
 
-#copy in source code
-COPY . /app 
+# Install any needed packages
+RUN pip install --no-cache-dir flask langchain-google-genai langchain-community
 
-WORKDIR /app 
-
-#install requirements
-#--no-cache-dir helps keep the image size smaller by not caching pip downloads
-RUN pip install --no-cache-dir -r requirements.txt 
-
+# Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-ENTRYPOINT ["python3"]
+# Define environment variable
+ENV PYTHONUNBUFFERED=1
 
-CMD ["slack_bot.py"] 
+# Run app.py when the container launches
+CMD ["python", "main.py"]
