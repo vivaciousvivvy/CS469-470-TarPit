@@ -99,35 +99,21 @@ config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
 # Slack command handler
 def slack_handler(request):
-    # Verify Slack request
+    # Extract headers
     slack_signature = request.headers.get("X-Slack-Signature", "")
     slack_timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
-    # Validate Slack signature
-    if not verifier.is_valid_request(request.get_data(as_text=True), slack_signature, slack_timestamp):
+
+    # Verify Slack request signature
+    request_body = request.get_data(as_text=True)
+    if not verifier.is_valid_request(request_body, slack_signature, slack_timestamp):
         return jsonify({"error": "Invalid request signature"}), 403
 
     # Parse incoming Slack request
     data = request.form
-    if data.get("command") == "/startchat":
+    if data.get("command") == "/butcher":
         user_id = data.get("user_id")
-        session_id = user_id
-
-        # Start a conversation with the persona
-        response = with_message_history.invoke(
-            {"messages": [HumanMessage(content="Start a chat")]},
-            config={"configurable": {"session_id": session_id}},
-        )
-
-        # Respond to the user
-        return jsonify({
-            "response_type": "in_channel",  # Public response in the channel
-            "text": response.content,
-        })
-
-    elif data.get("command") == "/reply":
-        user_id = data.get("user_id")
-        text = data.get("text")
-        session_id = user_id
+        text = data.get("text")  # The user's message
+        session_id = user_id  # Use user ID as the session ID
 
         # Continue conversation based on user input
         response = with_message_history.invoke(
@@ -142,6 +128,7 @@ def slack_handler(request):
         })
 
     return jsonify({"text": "Unknown command"}), 400
+
 
 
 # Google Cloud Function entry point
