@@ -151,8 +151,8 @@ def slack_bot(request):
         return jsonify({"error": "An internal server error occurred"}), 500
 '''
 
-async def slack_handler(request):
-    request_body = await request.get_data()
+def slack_handler(request):
+    request_body = request.get_data()
     verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
     if not verifier.is_valid_request(request_body, request.headers):
@@ -166,7 +166,7 @@ async def slack_handler(request):
         session_id = user_id  # Use user ID as the session ID
 
         # Continue conversation based on user input
-        response = await with_message_history.invoke(
+        response = with_message_history.invoke(
             {"messages": [HumanMessage(content=text)]},
             config={"configurable": {"session_id": session_id}},
         )
