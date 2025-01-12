@@ -204,6 +204,7 @@
 #         print(f"Error: {str(e)}")
 #         return jsonify({"error": "An internal server error occurred"}), 500
 
+from flask import Flask, request, jsonify
 
 # Flask app definition
 app = Flask(__name__)
