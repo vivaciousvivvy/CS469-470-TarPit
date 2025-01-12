@@ -205,9 +205,7 @@
 #         return jsonify({"error": "An internal server error occurred"}), 500
 
 
-from flask import Flask, request, jsonify
-
-# Flask app wrapper for Google Cloud Functions
+# Flask app definition
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
@@ -231,13 +229,16 @@ def hello_command():
 
 # Google Cloud Function entry point
 def slack_hello(request):
+    # Convert headers to a dictionary to avoid immutability issues
+    headers = {key: value for key, value in request.headers.items()}
+
     # Call Flask app directly
     with app.test_request_context(
         path=request.path,
         base_url=request.base_url,
         query_string=request.query_string,
         method=request.method,
-        headers=request.headers,
-        data=request.data
+        headers=headers,
+        data=request.get_data()
     ):
         return app.full_dispatch_request()
