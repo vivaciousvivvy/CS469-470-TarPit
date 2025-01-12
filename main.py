@@ -212,18 +212,32 @@ app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def hello_command():
-    # Parse the request data from Slack
-    data = request.form
-    user_name = data.get('user_name', 'there')
-    
-    # Respond with a friendly message
-    response = {
-        "response_type": "in_channel",  # "in_channel" makes it visible to all, "ephemeral" is private to the user
-        "text": f"Hello, {user_name}! 👋 How can I assist you today?"
-    }
-    
-    return jsonify(response)
+    try:
+        # Parse Slack's request
+        user_name = request.form.get('user_name', 'there')
+        
+        # Create a Slack response
+        response = {
+            "response_type": "in_channel",  # Visible to everyone in the channel
+            "text": f"Hello, {user_name}! 👋 How can I assist you today?"
+        }
+        return jsonify(response)
+    except Exception as e:
+        # Handle any unexpected errors
+        return jsonify({
+            "response_type": "ephemeral",  # Visible only to the user who triggered the command
+            "text": f"An error occurred: {str(e)}"
+        }), 500
 
-# Google Cloud Functions entry point
+# Google Cloud Function entry point
 def slack_hello(request):
-    return app(request)
+    # Call Flask app directly
+    with app.test_request_context(
+        path=request.path,
+        base_url=request.base_url,
+        query_string=request.query_string,
+        method=request.method,
+        headers=request.headers,
+        data=request.data
+    ):
+        return app.full_dispatch_request()
