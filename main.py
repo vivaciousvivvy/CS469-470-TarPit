@@ -12,6 +12,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
+import threading
 
 # Load environment variables
 load_dotenv()
@@ -83,19 +84,43 @@ def respond_to_butcher(request: Request):
     data = request.form
     session_id = data.get('user_id')  # Use user ID for session history
     user_input = data.get('text')  # Get the user's message
-    
-    # Respond if input exists
+
     if user_input:
-        response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=user_input)]},
-            config={"configurable": {"session_id": session_id}},
-        )
-        return jsonify({
-            "response_type": "in_channel",  # Public response
-            "text": response.content
-        })
+        # Acknowledge Slack immediately
+        ack_response = {
+            "response_type": "ephemeral",  # Private response
+            "text": "Processing your request... Please wait."
+        }
+
+        # Process the input asynchronously
+        threading.Thread(target=process_input, args=(session_id, user_input, data["response_url"])).start()
+        
+        return jsonify(ack_response)
     else:
         return jsonify({
             "response_type": "ephemeral",  # Private response
             "text": "Please provide a message."
+        })
+
+def process_input(session_id, user_input, response_url):
+    """
+    Process the user's input and send the response back to Slack asynchronously.
+    """
+    try:
+        # Generate response using the chatbot
+        response = with_message_history.invoke(
+            {"messages": [HumanMessage(content=user_input)]},
+            config={"configurable": {"session_id": session_id}},
+        )
+
+        # Send the response to Slack via the response URL
+        requests.post(response_url, json={
+            "response_type": "in_channel",  # Public response
+            "text": response.content
+        })
+    except Exception as e:
+        # Handle errors and send an error response back to Slack
+        requests.post(response_url, json={
+            "response_type": "ephemeral",  # Private response
+            "text": f"An error occurred: {e}"
         })
