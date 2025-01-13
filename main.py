@@ -287,9 +287,10 @@ with_message_history = RunnableWithMessageHistory(
     input_messages_key="messages",
 )
 
-@app.route("/slack-command", methods=["POST"])
-def slack_command():
+def slack_command(request):
+    """Handle the Slack slash command."""
     try:
+        # Parse incoming Slack request
         data = request.form
         user_id = data.get("user_id")
         text = data.get("text", "").strip()
@@ -297,16 +298,15 @@ def slack_command():
         if not text:
             return jsonify({"text": "Please provide a message after the command."})
 
+        # Generate response using LangChain
         config = {"configurable": {"session_id": user_id}}
         response = with_message_history.invoke(
             {"messages": [HumanMessage(content=text)]},
             config=config,
         )
 
+        # Respond back to Slack
         return jsonify({"response_type": "in_channel", "text": response.content})
 
     except Exception as e:
         return jsonify({"text": f"An error occurred: {e}"}), 500
-
-if __name__ == "__main__":
-    app.run(debug=True)
