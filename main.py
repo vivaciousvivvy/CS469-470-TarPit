@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 import threading
+import requests
 
 # Load environment variables
 load_dotenv()
