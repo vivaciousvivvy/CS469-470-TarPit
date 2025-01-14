@@ -192,8 +192,8 @@ def slack_bot(request):
         return jsonify({"error": "Only POST requests are accepted"}), 405
 
     try:
-        # Pass the request to the Slack handler
-        response = slack_handler_async(request)
+        # Run the asynchronous handler and wait for the result
+        response = asyncio.run(slack_handler_async(request))
         return response
     except ValueError as e:
         # Handle invalid Slack requests
