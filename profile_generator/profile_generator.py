@@ -25,9 +25,13 @@ class Profile:
         bio = model.generate_content(f"Generate me a 1-2 paragraph long bio for an individual with the name {name}. \
                                       This individual should be vulnerable, being older in age and/or lonely, \
                                       and desiring a connection. \
-                                      This individual may be a man or woman, and may come from any background or profession. \
+                                      This individual should be single, divorced, or widowed. \ 
+                                      This individual may be a man or woman, and may come from any background. \
+                                      This individual should come from a profession that would allow them to be middle-class to upper-class. \
                                       The bio should feel authentic. \
                                       The bio must be written in the third person and only cover facts about this person's life. \
+                                      The bio should include some approachable hobbies. \
+                                      The bio should include why the individual doesnt have a large social media presense. 
                                       The tone must be as if it is were in a biography.")
 
         print(bio.text)
