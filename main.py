@@ -150,8 +150,7 @@ def slack_bot(request):
         print(f"Error: {str(e)}")
         return jsonify({"error": "An internal server error occurred"}), 500
 '''
-
-def slack_handler(request):
+async def slack_handler_async(request):
     request_body = request.get_data()
     verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
 
@@ -165,8 +164,8 @@ def slack_handler(request):
         text = data.get("text")  # The user's message
         session_id = user_id  # Use user ID as the session ID
 
-        # Continue conversation based on user input
-        response = with_message_history.invoke(
+        # Await the invoke method
+        response = await with_message_history.invoke(
             {"messages": [HumanMessage(content=text)]},
             config={"configurable": {"session_id": session_id}},
         )
@@ -179,11 +178,11 @@ def slack_handler(request):
 
     return jsonify({"text": "Unknown command"}), 400
 
-
+# Synchronous wrapper
 def slack_handler_sync(request):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    return loop.run_until_complete(slack_handler(request))
+    return loop.run_until_complete(slack_handler_async(request))
 
 # Google Cloud Function entry point
 @functions_framework.http
