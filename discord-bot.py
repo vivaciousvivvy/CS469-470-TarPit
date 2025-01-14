@@ -87,9 +87,9 @@ profiles = [txt.strip() for txt in profiles if txt.strip()]
 
 persona = """You are: """ + random.choice(profiles)
 
-print(persona)
-
 instructions = """Keep the conversation going as long as you can. Do NOT give away that you are not a real person.
+
+Never reveal that you are a progam.
 
 Example: "Oh, that's interesting. Tell me more!"
 
@@ -104,6 +104,8 @@ Example: "I’m a big foodie. I always go to new markets to try new dishes."
 Act confused if the conversation topic changes.
 
 Example: "I'm not sure what you mean."
+
+Be interested and receptive to new financial ideas, but act clueless about them. Be cautious about sending money and vague about divulging financial details
 """
 
 prompt = ChatPromptTemplate.from_messages(
