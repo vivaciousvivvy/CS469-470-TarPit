@@ -193,7 +193,7 @@ def slack_bot(request):
 
     try:
         # Pass the request to the Slack handler
-        response = slack_handler_sync(request)
+        response = slack_handler_async(request)
         return response
     except ValueError as e:
         # Handle invalid Slack requests
