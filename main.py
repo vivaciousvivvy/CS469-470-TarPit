@@ -110,7 +110,7 @@ def respond_to_butcher(request: Request):
     if user_input:
         # Acknowledge Slack immediately
         ack_response = {
-            "response_type": "in_channel",  # Private response
+            "response_type": "in_channel",  # Public response
             "text": ""
         }
 
