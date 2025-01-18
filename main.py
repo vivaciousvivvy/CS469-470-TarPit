@@ -111,7 +111,7 @@ def respond_to_butcher(request: Request):
         # Acknowledge Slack immediately
         ack_response = {
             "response_type": "in_channel",  # Private response
-            # "text": "Processing your request... Please wait."
+            "text": user_input
         }
 
         # Process the input asynchronously
