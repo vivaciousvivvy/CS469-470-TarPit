@@ -140,7 +140,7 @@ def respond_to_butcher(request):
     """
     Google Cloud Function entry point for Quart.
     """
-    # Convert the asynchronous Quart response to a synchronous response
+    # Function to handle the asynchronous request
     async def handle_request():
         headers = {key: value for key, value in request.headers.items()}
 
@@ -155,12 +155,16 @@ def respond_to_butcher(request):
             response = await app.full_dispatch_request()
             return response
 
-    # Run the async handler in a synchronous context
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        response = asyncio.run(handle_request())
-    else:
-        response = loop.run_until_complete(handle_request())
+    # Check if there's an existing event loop
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # Create a new event loop if none exists
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-    # Convert Quart's response to a Werkzeug response for GCP
+    # Run the async handler in the event loop
+    response = loop.run_until_complete(handle_request())
+
+    # Convert Quart's response to a Werkzeug response
     return Response(response.get_data(), status=response.status_code, headers=dict(response.headers))
