@@ -101,6 +101,9 @@ async def process_input(session_id, user_input, response_url):
     Process the user's input asynchronously and send the response to Slack.
     """
     try:
+         # Delay the function
+        await asyncio.sleep(3)
+
         # Generate response using the chatbot
         response = with_message_history.invoke(
             {"messages": [HumanMessage(content=user_input)]},
