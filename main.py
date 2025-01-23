@@ -1,5 +1,5 @@
-import os
-from flask import jsonify, Request
+import asyncio
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -12,11 +12,13 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
-from concurrent.futures import ThreadPoolExecutor
-import requests
+import aiohttp
 
 # Load environment variables
 load_dotenv()
+
+# Flask app
+app = Flask(__name__)
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -94,37 +96,9 @@ with_message_history = RunnableWithMessageHistory(
     input_messages_key="messages",
 )
 
-# Cloud Function entry point
-executor = ThreadPoolExecutor(max_workers=5)
-
-def respond_to_butcher(request: Request):
-    if request.method != 'POST':
-        return jsonify({"error": "Method not allowed"}), 405
-
-    data = request.form
-    session_id = data.get('user_id')
-    user_input = data.get('text')
-    response_url = data.get('response_url')
-
-    if user_input:
-        ack_response = {
-            "response_type": "in_channel",
-            "text": "Processing your request... Please wait."
-        }
-
-        # Process the input asynchronously
-        executor.submit(process_input, session_id, user_input, response_url)
-
-        return jsonify(ack_response)
-    else:
-        return jsonify({
-            "response_type": "ephemeral",
-            "text": "Please provide a message."
-        })
-
-def process_input(session_id, user_input, response_url):
+async def process_input(session_id, user_input, response_url):
     """
-    Process the user's input and send the response back to Slack asynchronously.
+    Process the user's input asynchronously and send the response to Slack.
     """
     try:
         # Generate response using the chatbot
@@ -133,14 +107,66 @@ def process_input(session_id, user_input, response_url):
             config={"configurable": {"session_id": session_id}},
         )
 
-        # Send the response to Slack via the response URL
-        requests.post(response_url, json={
-            "response_type": "in_channel",  # Public response
-            "text": response.content
-        })
+        async with aiohttp.ClientSession() as session:
+            async with session.post(response_url, json={
+                "response_type": "in_channel",  # Public response
+                "text": response.content
+            }) as resp:
+                if resp.status != 200:
+                    print(f"Failed to send response: {resp.status} {await resp.text()}")
     except Exception as e:
-        # Handle errors and send an error response back to Slack
-        requests.post(response_url, json={
-            "response_type": "ephemeral",  # Private response
+        async with aiohttp.ClientSession() as session:
+            await session.post(response_url, json={
+                "response_type": "ephemeral",  # Private response
+                "text": f"An error occurred: {e}"
+            })
+
+@app.route('/', methods=['POST'])
+def slack_command():
+    """
+    Entry point for Slack slash commands.
+    """
+    try:
+        # Parse Slack's request
+        session_id = request.form.get('user_id')  # Use user ID for session history
+        user_input = request.form.get('text', '')  # Get the user's input text
+        response_url = request.form.get('response_url')  # Slack's response URL
+
+        if user_input:
+            # Acknowledge Slack immediately
+            ack_response = {
+                "response_type": "in_channel",  # Visible to everyone in the channel
+                "text": "Processing your request... Please wait."
+            }
+
+            # Schedule asynchronous task
+            asyncio.run(process_input(session_id, user_input, response_url))
+
+            return jsonify(ack_response)
+        else:
+            return jsonify({
+                "response_type": "ephemeral",
+                "text": "Please provide a message."
+            })
+    except Exception as e:
+        return jsonify({
+            "response_type": "ephemeral",
             "text": f"An error occurred: {e}"
-        })
+        }), 500
+
+# Google Cloud Function entry point
+def slack_handler(request):
+    """
+    Google Cloud Function entry point.
+    """
+    headers = {key: value for key, value in request.headers.items()}
+
+    with app.test_request_context(
+        path=request.path,
+        base_url=request.base_url,
+        query_string=request.query_string,
+        method=request.method,
+        headers=headers,
+        data=request.get_data()
+    ):
+        return app.full_dispatch_request()
