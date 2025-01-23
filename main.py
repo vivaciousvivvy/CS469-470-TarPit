@@ -172,9 +172,8 @@
 #         return app.full_dispatch_request()
 
 import asyncio
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -188,6 +187,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 import aiohttp
+from mangum import Mangum  # ASGI adapter for GCP Functions
 
 # Load environment variables
 load_dotenv()
@@ -295,7 +295,6 @@ async def process_input(session_id, user_input, response_url):
                 "text": f"An error occurred: {e}"
             })
 
-
 @app.post("/")
 async def respond_to_butcher(
     user_id: str = Form(...),
@@ -327,3 +326,6 @@ async def respond_to_butcher(
             "response_type": "ephemeral",
             "text": f"An error occurred: {e}"
         }, status_code=500)
+
+# ASGI entry point for Google Cloud Functions
+handler = Mangum(app)
