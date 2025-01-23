@@ -141,7 +141,7 @@ def slack_command():
             # Schedule asynchronous task
             asyncio.run(process_input(session_id, user_input, response_url))
 
-            jsonify(ack_response)
+            return jsonify(ack_response)
         else:
             return jsonify({
                 "response_type": "ephemeral",
