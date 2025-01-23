@@ -1,6 +1,6 @@
-import os
+import aiohttp
 import asyncio
-from flask import Flask, request, jsonify
+from quart import Quart, request, jsonify
 from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -13,13 +13,12 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
-import aiohttp
 
 # Load environment variables
 load_dotenv()
 
-# Flask app
-app = Flask(__name__)
+# Quart app
+app = Quart(__name__)
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -34,7 +33,7 @@ chat_llm = ChatGoogleGenerativeAI(
 store = {}
 
 # Allow multiple sessions and fetch the session history
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: str) -> ChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -101,9 +100,6 @@ async def process_input(session_id, user_input, response_url):
     Process the user's input asynchronously and send the response to Slack.
     """
     try:
-         # Delay the function
-        await asyncio.sleep(3)
-
         # Generate response using the chatbot
         response = with_message_history.invoke(
             {"messages": [HumanMessage(content=user_input)]},
@@ -125,25 +121,26 @@ async def process_input(session_id, user_input, response_url):
             })
 
 @app.route('/', methods=['POST'])
-def slack_command():
+async def slack_command():
     """
     Entry point for Slack slash commands.
     """
     try:
         # Parse Slack's request
-        session_id = request.form.get('user_id')  # Use user ID for session history
-        user_input = request.form.get('text', '')  # Get the user's input text
-        response_url = request.form.get('response_url')  # Slack's response URL
+        form = await request.form
+        session_id = form.get('user_id')  # Use user ID for session history
+        user_input = form.get('text', '')  # Get the user's input text
+        response_url = form.get('response_url')  # Slack's response URL
 
         if user_input:
             # Acknowledge Slack immediately
             ack_response = {
                 "response_type": "in_channel",  # Visible to everyone in the channel
-                "text": ""
+                "text": "Processing your request... Please wait."
             }
 
             # Schedule asynchronous task
-            asyncio.run(process_input(session_id, user_input, response_url))
+            asyncio.create_task(process_input(session_id, user_input, response_url))
 
             return jsonify(ack_response)
         else:
@@ -158,9 +155,9 @@ def slack_command():
         }), 500
 
 # Google Cloud Function entry point
-def respond_to_butcher(request):
+async def slack_handler(request):
     """
-    Google Cloud Function entry point.
+    Google Cloud Function entry point for Quart.
     """
     headers = {key: value for key, value in request.headers.items()}
 
@@ -170,6 +167,6 @@ def respond_to_butcher(request):
         query_string=request.query_string,
         method=request.method,
         headers=headers,
-        data=request.get_data()
+        data=await request.get_data()
     ):
-        return app.full_dispatch_request()
+        return await app.full_dispatch_request()
