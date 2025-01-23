@@ -297,7 +297,7 @@ async def process_input(session_id, user_input, response_url):
 
 
 @app.post("/")
-async def slack_command(
+async def respond_to_butcher(
     user_id: str = Form(...),
     text: str = Form(...),
     response_url: str = Form(...)
