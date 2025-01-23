@@ -155,7 +155,7 @@ def slack_command():
         }), 500
 
 # Google Cloud Function entry point
-def slack_handler(request):
+def respond_to_butcher(request):
     """
     Google Cloud Function entry point.
     """
