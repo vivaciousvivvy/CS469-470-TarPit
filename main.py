@@ -1,7 +1,5 @@
-import aiohttp
 import asyncio
-from werkzeug.wrappers import Response
-from quart import Quart, request, jsonify
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -14,12 +12,13 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
+import aiohttp
 
 # Load environment variables
 load_dotenv()
 
-# Quart app
-app = Quart(__name__)
+# Flask app
+app = Flask(__name__)
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -34,16 +33,37 @@ chat_llm = ChatGoogleGenerativeAI(
 store = {}
 
 # Allow multiple sessions and fetch the session history
-def get_session_history(session_id: str) -> ChatMessageHistory:
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
 # Create persona and prompts
-persona = """You are an ideal target for scammers to take advantage of...
+persona = """You are an ideal target for scammers to take advantage of.
 
-You have a lot of money saved up and are retired..."""
-instructions = """Keep the conversation going as long as you can..."""
+            You have a lot of money saved up and are retired. You have heard of cryptocurrency and investing
+            but you also know about the scams that are taking place. You are also someone who is very cautious
+            when strangers reach out to you."""
+
+instructions = """Keep the conversation going as long as you can. Do NOT give away that you are not a real person.
+
+Example: "Oh, that's interesting. Tell me more!"
+
+Never reveal that you are a progam.
+
+Use First-Person: Speak from your own perspective using "I" and "me".
+
+Example: "I love using soy sauce in my recipes."
+
+Be Brief and to the Point: Keep sentences short and straightforward.
+
+Example: "I’m a big foodie. I always go to new markets to try new dishes."
+
+Act confused if the conversation topic changes.
+
+Example: "I'm not sure what you mean."
+"""
+
 
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -102,16 +122,15 @@ async def process_input(session_id, user_input, response_url):
             })
 
 @app.route('/', methods=['POST'])
-async def slack_command():
+def slack_command():
     """
     Entry point for Slack slash commands.
     """
     try:
         # Parse Slack's request
-        form = await request.form
-        session_id = form.get('user_id')  # Use user ID for session history
-        user_input = form.get('text', '')  # Get the user's input text
-        response_url = form.get('response_url')  # Slack's response URL
+        session_id = request.form.get('user_id')  # Use user ID for session history
+        user_input = request.form.get('text', '')  # Get the user's input text
+        response_url = request.form.get('response_url')  # Slack's response URL
 
         if user_input:
             # Acknowledge Slack immediately
@@ -121,7 +140,7 @@ async def slack_command():
             }
 
             # Schedule asynchronous task
-            asyncio.create_task(process_input(session_id, user_input, response_url))
+            asyncio.run(process_input(session_id, user_input, response_url))
 
             return jsonify(ack_response)
         else:
@@ -136,39 +155,18 @@ async def slack_command():
         }), 500
 
 # Google Cloud Function entry point
-import asyncio
-from werkzeug.wrappers import Response
-
 def respond_to_butcher(request):
     """
-    Google Cloud Function entry point for Quart.
+    Google Cloud Function entry point.
     """
-    # Function to handle the asynchronous request
-    async def handle_request():
-        headers = {key: value for key, value in request.headers.items()}
+    headers = {key: value for key, value in request.headers.items()}
 
-        # Use Google Cloud Functions' `request.data` instead of `await request.get_data()`
-        with app.test_request_context(
-            path=request.path,
-            base_url=request.base_url,
-            query_string=request.query_string,
-            method=request.method,
-            headers=headers,
-            data=request.data  # Directly pass the `bytes` object
-        ):
-            response = await app.full_dispatch_request()
-            return response
-
-    # Check if there's an existing event loop
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # Create a new event loop if none exists
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    # Run the async handler in the event loop
-    response = loop.run_until_complete(handle_request())
-
-    # Convert Quart's response to a Werkzeug response
-    return Response(response.get_data(), status=response.status_code, headers=dict(response.headers))
+    with app.test_request_context(
+        path=request.path,
+        base_url=request.base_url,
+        query_string=request.query_string,
+        method=request.method,
+        headers=headers,
+        data=request.get_data()
+    ):
+        return app.full_dispatch_request()
