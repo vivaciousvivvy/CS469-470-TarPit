@@ -138,10 +138,9 @@ def slack_command():
                 "response_type": "in_channel",  # Visible to everyone in the channel
             }
 
+            jsonify(ack_response)
             # Schedule asynchronous task
-            asyncio.run(process_input(session_id, user_input, response_url))
-
-            return jsonify(ack_response)
+            return asyncio.run(process_input(session_id, user_input, response_url))
         else:
             return jsonify({
                 "response_type": "ephemeral",
