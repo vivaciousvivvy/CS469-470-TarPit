@@ -109,7 +109,7 @@ async def process_input(session_id, user_input, response_url):
         )
 
         async with aiohttp.ClientSession() as session:
-            time.sleep(5)
+            time.sleep(2)
             async with session.post(response_url, json={
                 "response_type": "in_channel",  # Public response
                 "text": response.content
