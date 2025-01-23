@@ -136,6 +136,9 @@ async def slack_command():
         }), 500
 
 # Google Cloud Function entry point
+import asyncio
+from werkzeug.wrappers import Response
+
 def respond_to_butcher(request):
     """
     Google Cloud Function entry point for Quart.
@@ -144,13 +147,14 @@ def respond_to_butcher(request):
     async def handle_request():
         headers = {key: value for key, value in request.headers.items()}
 
+        # Use Google Cloud Functions' `request.data` instead of `await request.get_data()`
         with app.test_request_context(
             path=request.path,
             base_url=request.base_url,
             query_string=request.query_string,
             method=request.method,
             headers=headers,
-            data=await request.get_data()
+            data=request.data  # Directly pass the `bytes` object
         ):
             response = await app.full_dispatch_request()
             return response
