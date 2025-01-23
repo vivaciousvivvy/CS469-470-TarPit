@@ -98,7 +98,7 @@ with_message_history = RunnableWithMessageHistory(
 
 async def process_input(session_id, user_input, response_url):
     """
-    Process the user's input asynchronously and send the response to Slack.
+    Process the user's input asynchronously and send the bot's response to Slack.
     """
     try:
         # Generate response using the chatbot
@@ -108,6 +108,7 @@ async def process_input(session_id, user_input, response_url):
         )
 
         async with aiohttp.ClientSession() as session:
+            # Send the bot's response to Slack
             async with session.post(response_url, json={
                 "response_type": "in_channel",  # Public response
                 "text": response.content
@@ -116,30 +117,33 @@ async def process_input(session_id, user_input, response_url):
                     print(f"Failed to send response: {resp.status} {await resp.text()}")
     except Exception as e:
         async with aiohttp.ClientSession() as session:
+            # Handle errors and send an error response back to Slack
             await session.post(response_url, json={
-                "response_type": "ephemeral",  # Private response
+                "response_type": "ephemeral",
                 "text": f"An error occurred: {e}"
             })
 
 @app.route('/', methods=['POST'])
-def slack_command():
+async def slack_command():
     """
     Entry point for Slack slash commands.
     """
     try:
         # Parse Slack's request
-        session_id = request.form.get('user_id')  # Use user ID for session history
-        user_input = request.form.get('text', '')  # Get the user's input text
-        response_url = request.form.get('response_url')  # Slack's response URL
+        form = await request.form
+        session_id = form.get('user_id')  # Use user ID for session history
+        user_input = form.get('text', '')  # Get the user's input text
+        response_url = form.get('response_url')  # Slack's response URL
 
         if user_input:
-            # Acknowledge Slack immediately
+            # Acknowledge Slack immediately and echo the user's input
             ack_response = {
                 "response_type": "in_channel",  # Visible to everyone in the channel
+                "text": f"You said: {user_input}"
             }
 
-            # Schedule asynchronous task
-            asyncio.run(process_input(session_id, user_input, response_url))
+            # Schedule asynchronous task for bot's response
+            asyncio.create_task(process_input(session_id, user_input, response_url))
 
             return jsonify(ack_response)
         else:
