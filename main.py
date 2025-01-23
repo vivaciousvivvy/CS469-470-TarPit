@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+from werkzeug.wrappers import Response
 from quart import Quart, request, jsonify
 from dotenv import load_dotenv
 from langchain_google_genai import (
@@ -135,18 +136,31 @@ async def slack_command():
         }), 500
 
 # Google Cloud Function entry point
-async def respond_to_butcher(request):
+def respond_to_butcher(request):
     """
     Google Cloud Function entry point for Quart.
     """
-    headers = {key: value for key, value in request.headers.items()}
+    # Convert the asynchronous Quart response to a synchronous response
+    async def handle_request():
+        headers = {key: value for key, value in request.headers.items()}
 
-    with app.test_request_context(
-        path=request.path,
-        base_url=request.base_url,
-        query_string=request.query_string,
-        method=request.method,
-        headers=headers,
-        data=await request.get_data()
-    ):
-        return await app.full_dispatch_request()
+        with app.test_request_context(
+            path=request.path,
+            base_url=request.base_url,
+            query_string=request.query_string,
+            method=request.method,
+            headers=headers,
+            data=await request.get_data()
+        ):
+            response = await app.full_dispatch_request()
+            return response
+
+    # Run the async handler in a synchronous context
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        response = asyncio.run(handle_request())
+    else:
+        response = loop.run_until_complete(handle_request())
+
+    # Convert Quart's response to a Werkzeug response for GCP
+    return Response(response.get_data(), status=response.status_code, headers=dict(response.headers))
