@@ -136,6 +136,7 @@ def slack_command():
             # Acknowledge Slack immediately
             ack_response = {
                 "response_type": "in_channel",  # Visible to everyone in the channel
+                "text": ""
             }
 
             # Schedule asynchronous task
