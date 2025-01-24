@@ -1,4 +1,5 @@
 import asyncio
+from fastapi.routing import APIRoute
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -156,16 +157,24 @@ async def respond_to_butcher(request: Request):
     """
     Google Cloud Function entry point.
     """
+    # Extract the body and headers from the incoming request
+    body = await request.body()
     headers = {key: value for key, value in request.headers.items()}
 
-    body = await request.body()
+    # Manually create a new request and dispatch it to FastAPI's router
+    route = next(
+        (route for route in app.router.routes if isinstance(route, APIRoute) and route.path == "/"),
+        None,
+    )
 
-    with app.router.scope_context(
-        path=request.url.path,
-        base_url=str(request.base_url),
-        query_string=request.url.query,
-        method=request.method,
-        headers=headers,
-        body=body
-    ):
-        return await app(request)
+    if route is None:
+        raise HTTPException(status_code=404, detail="Route not found.")
+
+    # Call the route handler
+    response = await route.endpoint(
+        user_id=request.query_params.get("user_id"),
+        text=request.query_params.get("text"),
+        response_url=request.query_params.get("response_url"),
+    )
+
+    return response
