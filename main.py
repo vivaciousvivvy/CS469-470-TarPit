@@ -173,5 +173,6 @@ async def respond_to_butcher(request: Request):
 # Entry point for Google Cloud Function
 handler = Mangum(app)
 
-def main(request, context):
-    return handler(request, context)
+def main(request):
+    asgi_handler = handler
+    return asgi_handler(request)
