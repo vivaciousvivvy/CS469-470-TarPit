@@ -15,6 +15,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 import aiohttp
 from pydantic import BaseModel
+from mangum import Mangum
 
 # Load environment variables
 load_dotenv()
@@ -170,7 +171,7 @@ async def respond_to_butcher(request: Request):
     return JSONResponse(content={"status": "processing"})
 
 # Entry point for Google Cloud Function
-def main(request):
-    import mangum
-    handler = mangum.Mangum(app)
-    return handler(request)
+handler = Mangum(app)
+
+def main(request, context):
+    return handler(request, context)
