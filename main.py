@@ -1,5 +1,4 @@
 import asyncio
-from fastapi.routing import APIRoute
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -157,24 +156,21 @@ async def respond_to_butcher(request: Request):
     """
     Google Cloud Function entry point.
     """
-    # Extract the body and headers from the incoming request
-    body = await request.body()
-    headers = {key: value for key, value in request.headers.items()}
+    body = await request.json()
+    user_id = body.get("user_id")
+    text = body.get("text")
+    response_url = body.get("response_url")
 
-    # Manually create a new request and dispatch it to FastAPI's router
-    route = next(
-        (route for route in app.router.routes if isinstance(route, APIRoute) and route.path == "/"),
-        None,
-    )
+    if not user_id or not text or not response_url:
+        raise HTTPException(status_code=400, detail="Missing required fields.")
 
-    if route is None:
-        raise HTTPException(status_code=404, detail="Route not found.")
+    # Acknowledge request immediately
+    asyncio.create_task(process_input(user_id, text, response_url))
 
-    # Call the route handler
-    response = await route.endpoint(
-        user_id=request.query_params.get("user_id"),
-        text=request.query_params.get("text"),
-        response_url=request.query_params.get("response_url"),
-    )
+    return JSONResponse(content={"status": "processing"})
 
-    return response
+# Entry point for Google Cloud Function
+def main(request):
+    import mangum
+    handler = mangum.Mangum(app)
+    return handler(request)
