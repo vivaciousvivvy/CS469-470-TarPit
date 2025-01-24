@@ -1,29 +1,26 @@
-import os
-from flask import Flask, request, jsonify
-from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
-from slack.signature import SignatureVerifier
+import asyncio
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
     HarmCategory,
     HarmBlockThreshold,
 )
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.messages import HumanMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
-import functions_framework
-import asyncio
+import aiohttp
+from pydantic import BaseModel
 
-# Environment variables
-SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
-SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
-GENAI_API_KEY = os.environ["GENAI_API_KEY"]
+# Load environment variables
+load_dotenv()
 
-# Initialize Slack client and signature verifier
-client = WebClient(token=SLACK_BOT_TOKEN)
-
+# FastAPI app
+app = FastAPI()
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -37,14 +34,13 @@ chat_llm = ChatGoogleGenerativeAI(
 # Simple store for conversation history
 store = {}
 
-# Fetches session history
-def get_session_history(session_id: str):
+# Allow multiple sessions and fetch the session history
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-# # Create persona and the prompts
-
+# Create persona and prompts
 persona = """You are an ideal target for scammers to take advantage of.
 
             You have a lot of money saved up and are retired. You have heard of cryptocurrency and investing
@@ -54,6 +50,8 @@ persona = """You are an ideal target for scammers to take advantage of.
 instructions = """Keep the conversation going as long as you can. Do NOT give away that you are not a real person.
 
 Example: "Oh, that's interesting. Tell me more!"
+
+Never reveal that you are a progam.
 
 Use First-Person: Speak from your own perspective using "I" and "me".
 
@@ -80,126 +78,94 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# Filter last k messages
+# Truncate message history to the last k messages
 def filter_messages(messages, k=10):
     """Filter the last k messages from the list of messages."""
     return messages[-k:]
 
-# Define chain of runnables
+# Define the chain of runnables
 casual_chain = (
     RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
     | prompt
     | chat_llm
 )
 
+# Create the runnable with message history
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,
     input_messages_key="messages",
 )
 
-config = {"configurable": {"session_id": "Starve_the_Butcher"}}
-
-# Slack command handler
-'''def slack_handler(request):
-    request_body = request.get_data()
-    verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
-
-    if not verifier.is_valid_request(request_body, request.headers):
-        raise ValueError("Invalid Slack request")
-
-    # Parse incoming Slack request
-    data = request.form
-    if data.get("command") == "/butcher":
-        user_id = data.get("user_id")
-        text = data.get("text")  # The user's message
-        session_id = user_id  # Use user ID as the session ID
-
-        # Continue conversation based on user input
+async def process_input(session_id, user_input, response_url):
+    """
+    Process the user's input asynchronously and send the response to Slack.
+    """
+    try:
+        # Generate response using the chatbot
         response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=text)]},
+            {"messages": [HumanMessage(content=user_input)]},
             config={"configurable": {"session_id": session_id}},
         )
 
-        # Respond to the user
-        return jsonify({
-            "response_type": "in_channel",
-            "text": response.content,
-        })
-
-    return jsonify({"text": "Unknown command"}), 400
-
-
-
-# Google Cloud Function entry point
-@functions_framework.http
-def slack_bot(request):
-    # Ensure only POST requests are processed
-    if request.method != 'POST':
-        return jsonify({"error": "Only POST requests are accepted"}), 405
-
-    try:
-        # Pass the request to the Slack handler
-        response = slack_handler(request)
-        return response
-    except ValueError as e:
-        # Handle invalid Slack requests
-        return jsonify({"error": str(e)}), 403
+        async with aiohttp.ClientSession() as session:
+            async with session.post(response_url, json={
+                "response_type": "in_channel",  # Public response
+                "text": response.content
+            }) as resp:
+                if resp.status != 200:
+                    print(f"Failed to send response: {resp.status} {await resp.text()}")
     except Exception as e:
-        # Catch any unexpected errors and log them
-        print(f"Error: {str(e)}")
-        return jsonify({"error": "An internal server error occurred"}), 500
-'''
+        async with aiohttp.ClientSession() as session:
+            await session.post(response_url, json={
+                "response_type": "ephemeral",  # Private response
+                "text": f"An error occurred: {e}"
+            })
 
-def slack_handler(request):
-    request_body = request.get_data()
-    verifier = SignatureVerifier(SLACK_SIGNING_SECRET)
-
-    if not verifier.is_valid_request(request_body, request.headers):
-        raise ValueError("Invalid Slack request")
-
-    # Parse incoming Slack request
-    data = request.form
-    if data.get("command") == "/butcher":
-        user_id = data.get("user_id")
-        text = data.get("text")  # The user's message
-        session_id = user_id  # Use user ID as the session ID
-
-        # Continue conversation based on user input
-        response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=text)]},
-            config={"configurable": {"session_id": session_id}},
-        )
-
-        # Respond to the user
-        return jsonify({
-            "response_type": "in_channel",
-            "text": response.content,
-        })
-
-    return jsonify({"text": "Unknown command"}), 400
-
-
-def slack_handler_sync(request):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop.run_until_complete(slack_handler(request))
-
-# Google Cloud Function entry point
-@functions_framework.http
-def slack_bot(request):
-    # Ensure only POST requests are processed
-    if request.method != 'POST':
-        return jsonify({"error": "Only POST requests are accepted"}), 405
-
+@app.post("/")
+async def slack_command(
+    user_id: str = Form(...),
+    text: str = Form(...),
+    response_url: str = Form(...),
+):
+    """
+    Entry point for Slack slash commands.
+    """
     try:
-        # Pass the request to the Slack handler
-        response = slack_handler_sync(request)
-        return response
-    except ValueError as e:
-        # Handle invalid Slack requests
-        return jsonify({"error": str(e)}), 403
+        if text:
+            # Acknowledge Slack immediately
+            ack_response = {
+                "response_type": "in_channel",  # Visible to everyone in the channel
+                "text": "Processing your request... Please wait."
+            }
+
+            # Schedule asynchronous task
+            asyncio.create_task(process_input(user_id, text, response_url))
+
+            return JSONResponse(content=ack_response)
+        else:
+            return JSONResponse(content={
+                "response_type": "ephemeral",
+                "text": "Please provide a message."
+            })
     except Exception as e:
-        # Catch any unexpected errors and log them
-        print(f"Error: {str(e)}")
-        return jsonify({"error": "An internal server error occurred"}), 500
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+@app.post("/gcf-entry")
+async def respond_to_butcher(request: Request):
+    """
+    Google Cloud Function entry point.
+    """
+    headers = {key: value for key, value in request.headers.items()}
+
+    body = await request.body()
+
+    with app.router.scope_context(
+        path=request.url.path,
+        base_url=str(request.base_url),
+        query_string=request.url.query,
+        method=request.method,
+        headers=headers,
+        body=body
+    ):
+        return await app(request)
