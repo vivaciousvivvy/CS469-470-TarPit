@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -163,32 +164,39 @@ async def respond_to_butcher(request: Request):
     response_url = body.get("response_url")
 
     if not user_id or not text or not response_url:
-        raise HTTPException(status_code=400, detail="Missing required fields.")
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Missing required fields: user_id, text, or response_url."},
+        )
 
-    # Acknowledge request immediately
-    asyncio.create_task(process_input(user_id, text, response_url))
-
-    return JSONResponse(content={"status": "processing"})
-
-# Entry point for Google Cloud Function
-handler = Mangum(app)
+    # Process the input asynchronously (mocking some async work here)
+    await asyncio.sleep(1)
+    return JSONResponse(content={"status": "processed", "user_id": user_id})
 
 def main(request):
     """
     Entry point for Google Cloud Function.
-    Adapts the incoming request to an ASGI-compatible event for Mangum.
+    Converts the Google Cloud Function `request` into a FastAPI-compatible request.
     """
-    # Convert Google Cloud Function request to ASGI event
-    asgi_event = {
-        "httpMethod": request.method,
-        "headers": {key.lower(): value for key, value in request.headers.items()},
-        "queryStringParameters": request.args.to_dict(),
-        "body": request.get_data(as_text=True),
-        "path": request.path,
-        "isBase64Encoded": False,
-    }
-    asgi_context = {}
+    # Extract body, headers, method, and path from the GCF request.
+    body = request.get_data(as_text=True)
+    headers = dict(request.headers)
+    method = request.method
+    path = request.path
 
-    # Call the Mangum handler
-    response = handler(asgi_event, asgi_context)
-    return response
+    # Simulate ASGI scope
+    asgi_scope = {
+        "type": "http",
+        "method": method,
+        "path": path,
+        "headers": [(key.encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()],
+        "body": body.encode("utf-8") if body else b"",
+    }
+
+    # Use FastAPI test client to process the request
+    from starlette.testclient import TestClient
+    client = TestClient(app)
+    response = client.request(method=method, url=path, headers=headers, data=body)
+
+    # Return a Google Cloud Function-compatible response
+    return (response.content, response.status_code, response.headers.items())
