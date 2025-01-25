@@ -174,5 +174,21 @@ async def respond_to_butcher(request: Request):
 handler = Mangum(app)
 
 def main(request):
-    asgi_handler = handler
-    return asgi_handler(request)
+    """
+    Entry point for Google Cloud Function.
+    Adapts the incoming request to an ASGI-compatible event for Mangum.
+    """
+    # Convert Google Cloud Function request to ASGI event
+    asgi_event = {
+        "httpMethod": request.method,
+        "headers": {key.lower(): value for key, value in request.headers.items()},
+        "queryStringParameters": request.args.to_dict(),
+        "body": request.get_data(as_text=True),
+        "path": request.path,
+        "isBase64Encoded": False,
+    }
+    asgi_context = {}
+
+    # Call the Mangum handler
+    response = handler(asgi_event, asgi_context)
+    return response
