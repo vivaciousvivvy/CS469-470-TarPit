@@ -169,9 +169,11 @@ async def respond_to_butcher(request: Request):
             content={"error": "Missing required fields: user_id, text, or response_url."},
         )
 
-    # Process the input asynchronously (mocking some async work here)
-    await asyncio.sleep(1)
-    return JSONResponse(content={"status": "processed", "user_id": user_id})
+    # Process in the background
+    asyncio.create_task(process_input(user_id, text, response_url))
+
+    # Return an immediate acknowledgment
+    return JSONResponse(content={"status": "processing"}, status_code=202)
 
 def main(request):
     """
