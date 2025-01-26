@@ -180,25 +180,22 @@ def main(request):
     Entry point for Google Cloud Function.
     Converts the Google Cloud Function `request` into a FastAPI-compatible request.
     """
-    # Extract body, headers, method, and path from the GCF request.
-    body = request.get_data(as_text=True)
-    headers = dict(request.headers)
-    method = request.method
-    path = request.path
+    try:
+        # Extract necessary request data
+        body = request.get_data(as_text=True) or ""
+        headers = {key: value for key, value in request.headers.items()}
+        method = request.method
+        path = request.path
 
-    # Simulate ASGI scope
-    asgi_scope = {
-        "type": "http",
-        "method": method,
-        "path": path,
-        "headers": [(key.encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()],
-        "body": body.encode("utf-8") if body else b"",
-    }
+        # Use FastAPI TestClient to simulate handling of the request
+        from starlette.testclient import TestClient
+        client = TestClient(app)
 
-    # Use FastAPI test client to process the request
-    from starlette.testclient import TestClient
-    client = TestClient(app)
-    response = client.request(method=method, url=path, headers=headers, data=body)
+        # Call the FastAPI app and capture the response
+        response = client.request(method=method, url=path, headers=headers, data=body)
 
-    # Return a Google Cloud Function-compatible response
-    return (response.content, response.status_code, response.headers.items())
+        # Construct and return the Cloud Function-compatible response
+        return response.content, response.status_code, dict(response.headers)
+    except Exception as e:
+        # Log the error and return a 500 status code
+        return {"error": f"Function error: {str(e)}"}, 500, {}
