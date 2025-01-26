@@ -110,7 +110,7 @@ async def process_input(session_id, user_input, response_url):
             config={"configurable": {"session_id": session_id}},
         )
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # Timeout of 10 seconds
             async with session.post(response_url, json={
                 "response_type": "in_channel",  # Public response
                 "text": response.content
