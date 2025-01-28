@@ -286,7 +286,7 @@ def process_message(user_input, session_id, response_url):
         )
 
 @app.route("/", methods=["POST"])
-def respond_to_butcher():
+def respond_to_butcher(request):
     try:
         # Parse Slack request payload
         request_form = request.form
