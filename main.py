@@ -286,13 +286,13 @@ def process_message(user_input, session_id, response_url):
         )
 
 @app.route("/", methods=["POST"])
-def starve_the_butcher():
+def respond_to_butcher():
     try:
         # Parse Slack request payload
         request_form = request.form
         user_input = request_form.get("text", "")
         response_url = request_form.get("response_url")
-        session_id = request_form.get("user_id", "Starve_the_Butcher")
+        session_id = request_form.get("user_id", "respond_to_butcher")
 
         if not user_input:
             return jsonify({"response_type": "ephemeral", "text": "No input provided"}), 200
