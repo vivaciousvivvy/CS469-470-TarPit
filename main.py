@@ -268,22 +268,36 @@ with_message_history = RunnableWithMessageHistory(
 # Entry point for the Cloud Function
 def respond_to_butcher(request):
     try:
-        # Extract user input and session ID from the request
+        # Parse the incoming request
         request_json = request.get_json(silent=True)
-        user_input = request_json.get("message", "")
-        session_id = request_json.get("session_id", "Starve_the_Butcher")
+        user_input = request_json.get("text", "")
+        response_url = request_json.get("response_url")
+        session_id = request_json.get("user_id", "Starve_the_Butcher")
 
         if not user_input:
-            return jsonify({"error": "No input message provided"}), 400
+            return jsonify({"response_type": "ephemeral", "text": "No input message provided"}), 200
 
-        # Generate response
+        # Respond immediately to Slack
+        requests.post(
+            response_url,
+            json={"response_type": "ephemeral", "text": "Processing your request..."}
+        )
+
+        # Process the input asynchronously
         response = with_message_history.invoke(
             {"messages": [HumanMessage(content=user_input)]},
             config={"configurable": {"session_id": session_id}},
         )
-        return jsonify({"response": response.content})
+
+        # Send the final response to Slack via response_url
+        requests.post(
+            response_url,
+            json={"response_type": "in_channel", "text": response.content}
+        )
+
+        return "", 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"response_type": "ephemeral", "text": f"Error: {str(e)}"}), 500
 
 
 # Local testing
