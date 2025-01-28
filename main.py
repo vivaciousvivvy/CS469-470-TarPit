@@ -265,46 +265,52 @@ with_message_history = RunnableWithMessageHistory(
 )
 
 
-# Entry point for the Cloud Function
-def respond_to_butcher(request):
+def process_message(user_input, session_id, response_url):
     try:
-        # Parse the incoming request
-        request_json = request.get_json(silent=True)
-        user_input = request_json.get("text", "")
-        response_url = request_json.get("response_url")
-        session_id = request_json.get("user_id", "Starve_the_Butcher")
-
-        if not user_input:
-            return jsonify({"response_type": "ephemeral", "text": "No input message provided"}), 200
-
-        # Respond immediately to Slack
-        requests.post(
-            response_url,
-            json={"response_type": "ephemeral", "text": "Processing your request..."}
-        )
-
-        # Process the input asynchronously
+        # Perform the actual processing
         response = with_message_history.invoke(
             {"messages": [HumanMessage(content=user_input)]},
             config={"configurable": {"session_id": session_id}},
         )
 
-        # Send the final response to Slack via response_url
+        # Send the final response back to Slack
         requests.post(
             response_url,
             json={"response_type": "in_channel", "text": response.content}
         )
+    except Exception as e:
+        # Handle errors and send error messages to Slack
+        requests.post(
+            response_url,
+            json={"response_type": "ephemeral", "text": f"Error processing request: {str(e)}"}
+        )
 
-        return "", 200
+@app.route("/", methods=["POST"])
+def starve_the_butcher():
+    try:
+        # Parse Slack request payload
+        request_form = request.form
+        user_input = request_form.get("text", "")
+        response_url = request_form.get("response_url")
+        session_id = request_form.get("user_id", "Starve_the_Butcher")
+
+        if not user_input:
+            return jsonify({"response_type": "ephemeral", "text": "No input provided"}), 200
+
+        # Respond immediately to Slack to avoid timeout
+        requests.post(
+            response_url,
+            json={"response_type": "ephemeral", "text": "Processing your request..."}
+        )
+
+        # Process the message asynchronously
+        from threading import Thread
+        Thread(target=process_message, args=(user_input, session_id, response_url)).start()
+
+        # Return an acknowledgment to Slack
+        return jsonify({"response_type": "ephemeral", "text": "Your request is being processed."}), 200
     except Exception as e:
         return jsonify({"response_type": "ephemeral", "text": f"Error: {str(e)}"}), 500
-
-
-# Local testing
-@app.route("/", methods=["POST"])
-def handle_request():
-    return respond_to_butcher(request)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
