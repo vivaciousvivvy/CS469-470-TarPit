@@ -4,6 +4,27 @@ from vertexai.preview.vision_models import ImageGenerationModel
 from vertexai.generative_models import GenerativeModel
 
 
+"""import io
+from PIL import Image
+import requests
+
+HF_API_KEY = os.environ("VIVEK_HF_API_KEY")
+API_URL = "https://api-inference.huggingface.co/models/ZB-Tech/Text-to-Image"
+headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+
+
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.content
+image_bytes = query({
+    "inputs": "Astronaut riding a horse",
+})
+
+# You can access the image with PIL.Image for example
+
+image = Image.open(io.BytesIO(image_bytes))"""
+
+
 class Profile:
 
     def __init__(self):
@@ -25,13 +46,13 @@ class Profile:
         bio = model.generate_content(f"Generate me a 1-2 paragraph long bio for an individual with the name {name}. \
                                       This individual should be vulnerable, being older in age and/or lonely, \
                                       and desiring a connection. \
-                                      This individual should be single, divorced, or widowed. \ 
+                                      This individual should be single, divorced, or widowed. \
                                       This individual may be a man or woman, and may come from any background. \
                                       This individual should come from a profession that would allow them to be middle-class to upper-class. \
                                       The bio should feel authentic. \
                                       The bio must be written in the third person and only cover facts about this person's life. \
                                       The bio should include some approachable hobbies. \
-                                      The bio should include why the individual doesnt have a large social media presense. 
+                                      The bio should include why the individual doesnt have a large social media presense. \
                                       The tone must be as if it is were in a biography.")
 
         print(bio.text)
@@ -39,7 +60,8 @@ class Profile:
 
     def generate_picture(self, output_file_name):
         output_file = output_file_name
-        prompt = f"Generate an image for someone with the name {self.name} and the bio {self.bio}."
+        prompt = f"Generate an image for someone with the name {self.name} and the bio {self.bio}. \
+                Make this picture an unclear selfie"
         model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
 
         images = model.generate_images(
@@ -66,6 +88,8 @@ class Profile:
 def run_main():
     profile = Profile()
     profile.generate_name()
+    profile.generate_bio(profile.name)
+    profile.generate_picture("output.png")
 
 if __name__ == "__main__":
     run_main()
