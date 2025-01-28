@@ -289,7 +289,7 @@ def respond_to_butcher(request):
 # Local testing
 @app.route("/", methods=["POST"])
 def handle_request():
-    return starve_the_butcher(request)
+    return respond_to_butcher(request)
 
 
 if __name__ == "__main__":
