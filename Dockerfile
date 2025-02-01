@@ -1,20 +1,20 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.10-slim
 
-# Set the working directory in the container
-WORKDIR /app
-
-# Copy the current directory contents into the container
+# Copy the application code
 COPY . /app
 
-# Install any needed packages
-RUN pip install --no-cache-dir flask langchain-google-genai langchain-community
+# Set the working directory
+WORKDIR /app
 
-# Make port 8080 available to the world outside this container
-EXPOSE 8080
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Define environment variable
-ENV PYTHONUNBUFFERED=1
+# Expose port 8000 for FastAPI
+EXPOSE 8000
 
-# Run app.py when the container launches
-CMD ["python", "main.py"]
+ENTRYPOINT ["uvicorn"]
+
+ENV GOOGLE_API_KEY=<FMI>
+
+# Command to run the FastAPI application
+CMD ["fast-api:app", "--host", "0.0.0.0", "--port", "8000"]
