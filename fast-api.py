@@ -105,30 +105,27 @@ async def chat(request: MessageRequest):
     
 
 
+# Chatwoot API Credentials
+
 
 @app.post("/chatwoot-webhook")
 async def chatwoot_webhook(request: Request):
     data = await request.json()
     print(f"Received Webhook: {data}")
     # Extract message details
-    event = data.get("event")
-    if event == "message_created":
-        message_content = data.get("content")
-        conversation_id = data.get("conversation_id")
-        sender_type = data.get("message_type")  # incoming or outgoing
-        
-        # Avoid replying to our own messages
-        if sender_type == "incoming":
-            try:
-                config = {"configurable": {"session_id": "test_session"}}
-                response_text = with_message_history.invoke(
-                    {"messages": [HumanMessage(content=message_content)]},
-                    config=config,
-                )
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
+    conversation_id = data["id"]
+    message_content = data["messages"][0]["content"]
 
-            asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
+    try:
+        config = {"configurable": {"session_id": "test_session"}}
+        response_text = with_message_history.invoke(
+            {"messages": [HumanMessage(content=message_content)]},
+            config=config,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
 
     return {"status": "success"}
 
@@ -143,7 +140,7 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
     """
     Send a message back to Chatwoot in the same conversation.
     """
-    url = <FMI>
+    
     headers = {
         "Content-Type": "application/json",
         "api_access_token": CHATWOOT_API_KEY
