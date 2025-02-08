@@ -117,7 +117,7 @@ async def chatwoot_webhook(request: Request):
     message_content = data["messages"][0]["content"]
 
     try:
-        config = {"configurable": {"session_id": "test_session"}}
+        config = {"configurable": {"session_id": conversation_id}}
         response_text = with_message_history.invoke(
             {"messages": [HumanMessage(content=message_content)]},
             config=config,
@@ -140,7 +140,8 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
     """
     Send a message back to Chatwoot in the same conversation.
     """
-    
+
+    url = ""
     headers = {
         "Content-Type": "application/json",
         "api_access_token": CHATWOOT_API_KEY
