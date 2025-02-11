@@ -4,3 +4,9 @@ __pycache__
 .env
 SetKeys.ps1
 keys.txt
+lib64
+bin
+include
+lib
+*.png
+*.cfg
