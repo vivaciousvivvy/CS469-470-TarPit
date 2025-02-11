@@ -2,11 +2,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from langchain_google_genai import (
-    ChatGoogleGenerativeAI,
-    HarmCategory,
-    HarmBlockThreshold,
-)
+# Changed imports
+from langchain_openai import ChatOpenAI  # Instead of langchain_google_genai
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -14,23 +11,18 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 
-# Initialize both LLMs
-original_llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro-latest",
+# Initialize both LLMs with OpenAI
+original_llm = ChatOpenAI(
+    model="gpt-4",  
     temperature=1.00,
-    safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    },
+    openai_api_key=os.getenv("OPENAI_API_KEY")  # Make sure to set this in .env
 )
 
-scammer_llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro-latest",
+scammer_llm = ChatOpenAI(
+    model="gpt-4",
     temperature=0.7,
-    safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    },
+    openai_api_key=os.getenv("OPENAI_API_KEY")
 )
-
 # Conversation store
 store = {}
 
