@@ -1,4 +1,5 @@
 import os
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\homey\AppData\Roaming\gcloud\application_default_credentials.json"
 import requests
 from dotenv import load_dotenv
 load_dotenv()
