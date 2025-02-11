@@ -1,2 +1,2 @@
 google-cloud-aiplatform
-PIL
+sqlalchemy

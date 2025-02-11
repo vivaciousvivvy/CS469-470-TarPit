@@ -2,6 +2,7 @@ import os
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 from vertexai.generative_models import GenerativeModel
+from datetime import datetime
 
 
 """import io
@@ -25,12 +26,9 @@ image_bytes = query({
 image = Image.open(io.BytesIO(image_bytes))"""
 
 
-class Profile:
+class ProfileGenerator:
 
     def __init__(self):
-        self.name = ""
-        self.bio = ""
-        self.picture_path = ""
         self.PROJECT_ID = "cs470-rag-llm"
         vertexai.init(project=self.PROJECT_ID, location="us-west1")
 
@@ -38,7 +36,6 @@ class Profile:
         model = GenerativeModel("gemini-1.5-flash-002")
         name = model.generate_content(f"Generate me a full name, including middle name, for an individual")
         print(name.text)
-        self.name = name
 
     def generate_bio(self, name):
         model = GenerativeModel("gemini-1.5-flash-002")
@@ -56,11 +53,14 @@ class Profile:
                                       The tone must be as if it is were in a biography.")
 
         print(bio.text)
-        self.bio = bio
 
-    def generate_picture(self, output_file_name):
-        output_file = output_file_name
-        prompt = f"Generate an image for someone with the name {self.name} and the bio {self.bio}. \
+    def generate_picture(self, bio, name):
+
+        date = datetime.now().strftime("%Y-%m-%d")
+        name_str = name.lower().replace(" ", "_").strip()
+        output_file_name = f"{name_str}_{date}.png"
+
+        prompt = f"Generate an image for someone with the name {name} and the bio {bio}. \
                 Make this picture an unclear selfie"
         model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
 
