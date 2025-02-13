@@ -1,20 +1,20 @@
 FROM python:3.10-slim
 
-RUN apt-get update -y 
-RUN apt-get install -y python3-pip 
+# Copy the application code
+COPY . /app
 
-# Clean up apt cache to reduce image size
-RUN rm -rf /var/lib/apt/lists/*
+# Set the working directory
+WORKDIR /app
 
-#copy in source code
-COPY . /app 
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-WORKDIR /app 
+# Expose port 8000 for FastAPI
+EXPOSE 8000
 
-#install requirements
-#--no-cache-dir helps keep the image size smaller by not caching pip downloads
-RUN pip install --no-cache-dir -r requirements.txt 
+ENTRYPOINT ["uvicorn"]
 
-ENTRYPOINT ["python3"]
+ENV GOOGLE_API_KEY=<FMI>
 
-CMD ["starve_the_butcher.py"] 
+# Command to run the FastAPI application
+CMD ["fast-api:app", "--host", "0.0.0.0", "--port", "8000"]

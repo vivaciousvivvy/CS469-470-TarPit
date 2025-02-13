@@ -1,5 +1,7 @@
-import os
-from flask import jsonify, Request
+import asyncio
+import json
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -17,6 +19,9 @@ import requests
 
 # Load environment variables
 load_dotenv()
+
+# FastAPI app
+app = FastAPI()
 
 # Create the LLM
 chat_llm = ChatGoogleGenerativeAI(
@@ -62,7 +67,6 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
-
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -94,55 +98,76 @@ with_message_history = RunnableWithMessageHistory(
     input_messages_key="messages",
 )
 
-# Cloud Function entry point
-def respond_to_butcher(request: Request):
-    """
-    Entry point for the Google Cloud Function.
-    Processes Slack slash command requests.
-    """
-    if request.method != 'POST':
-        return jsonify({"error": "Method not allowed"}), 405
+class MessageRequest(BaseModel):
+    session_id: str
+    message: str
 
-    data = request.form
-    session_id = data.get('user_id')  # Use user ID for session history
-    user_input = data.get('text')  # Get the user's message
-
-    if user_input:
-        # Acknowledge Slack immediately
-        ack_response = {
-            "response_type": "in_channel",  # Public response
-            "text": ""
-        }
-
-        # Process the input asynchronously
-        threading.Thread(target=process_input, args=(session_id, user_input, data["response_url"])).start()
-        
-        return jsonify(ack_response)
-    else:
-        return jsonify({
-            "response_type": "ephemeral",  # Private response
-            "text": "Please provide a message."
-        })
-
-def process_input(session_id, user_input, response_url):
-    """
-    Process the user's input and send the response back to Slack asynchronously.
-    """
+@app.post("/chat/")
+async def chat(request: MessageRequest):
     try:
-        # Generate response using the chatbot
+        config = {"configurable": {"session_id": request.session_id}}
         response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=user_input)]},
-            config={"configurable": {"session_id": session_id}},
+            {"messages": [HumanMessage(content=request.message)]},
+            config=config,
         )
-
-        # Send the response to Slack via the response URL
-        requests.post(response_url, json={
-            "response_type": "in_channel",  # Public response
-            "text": response.content
-        })
+        return {"response": response.content}
     except Exception as e:
-        # Handle errors and send an error response back to Slack
-        requests.post(response_url, json={
-            "response_type": "ephemeral",  # Private response
-            "text": f"An error occurred: {e}"
-        })
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+# Chatwoot API Credentials
+
+
+@app.post("/chatwoot-webhook")
+async def chatwoot_webhook(request: Request):
+    data = await request.json()
+    print(f"Received Webhook: {data}")
+    # Extract message details
+    conversation_id = data["id"]
+    message_content = data["messages"][0]["content"]
+
+    try:
+        config = {"configurable": {"session_id": conversation_id}}
+        response_text = with_message_history.invoke(
+            {"messages": [HumanMessage(content=message_content)]},
+            config=config,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
+
+    return {"status": "success"}
+
+def process_message(message: str) -> str:
+    """
+    Modify or process the message as needed.
+    Here, we're just echoing back with a prefix.
+    """
+    return f"Echo: {message}"
+
+CHATWOOT_API_KEY = "<FMI>"
+
+async def send_response_to_chatwoot(conversation_id: int, response_text: str):
+    """
+    Send a message back to Chatwoot in the same conversation.
+    """
+
+    url = ""
+    headers = {
+        "Content-Type": "application/json",
+        "api_access_token": CHATWOOT_API_KEY
+    }
+    payload = {
+        "content": response_text,
+        "message_type": "outgoing",
+        "private": False  # Set to True if you want it to be internal
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        print(f"Response sent: {response.status_code}, {response.text}")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
