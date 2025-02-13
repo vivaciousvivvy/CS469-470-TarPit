@@ -14,9 +14,8 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
-import aiohttp
-from pydantic import BaseModel
-from mangum import Mangum
+import threading
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -99,103 +98,76 @@ with_message_history = RunnableWithMessageHistory(
     input_messages_key="messages",
 )
 
-async def process_input(session_id, user_input, response_url):
-    """
-    Process the user's input asynchronously and send the response to Slack.
-    """
+class MessageRequest(BaseModel):
+    session_id: str
+    message: str
+
+@app.post("/chat/")
+async def chat(request: MessageRequest):
     try:
-        # Generate response using the chatbot
+        config = {"configurable": {"session_id": request.session_id}}
         response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=user_input)]},
-            config={"configurable": {"session_id": session_id}},
+            {"messages": [HumanMessage(content=request.message)]},
+            config=config,
         )
-
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:  # Timeout of 10 seconds
-            async with session.post(response_url, json={
-                "response_type": "in_channel",  # Public response
-                "text": response.content
-            }) as resp:
-                if resp.status != 200:
-                    print(f"Failed to send response: {resp.status} {await resp.text()}")
+        return {"response": response.content}
     except Exception as e:
-        async with aiohttp.ClientSession() as session:
-            await session.post(response_url, json={
-                "response_type": "ephemeral",  # Private response
-                "text": f"An error occurred: {e}"
-            })
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
-@app.post("/")
-async def slack_command(
-    user_id: str = Form(...),
-    text: str = Form(...),
-    response_url: str = Form(...),
-):
-    """
-    Entry point for Slack slash commands.
-    """
+
+# Chatwoot API Credentials
+
+
+@app.post("/chatwoot-webhook")
+async def chatwoot_webhook(request: Request):
+    data = await request.json()
+    print(f"Received Webhook: {data}")
+    # Extract message details
+    conversation_id = data["id"]
+    message_content = data["messages"][0]["content"]
+
     try:
-        if text:
-            # Acknowledge Slack immediately
-            ack_response = {
-                "response_type": "in_channel",  # Visible to everyone in the channel
-                "text": "Processing your request... Please wait."
-            }
-
-            # Schedule asynchronous task
-            asyncio.create_task(process_input(user_id, text, response_url))
-
-            return JSONResponse(content=ack_response)
-        else:
-            return JSONResponse(content={
-                "response_type": "ephemeral",
-                "text": "Please provide a message."
-            })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
-
-@app.post("/gcf-entry")
-async def respond_to_butcher(request: Request):
-    """
-    Google Cloud Function entry point.
-    """
-    body = await request.json()
-    user_id = body.get("user_id")
-    text = body.get("text")
-    response_url = body.get("response_url")
-
-    if not user_id or not text or not response_url:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Missing required fields: user_id, text, or response_url."},
+        config = {"configurable": {"session_id": conversation_id}}
+        response_text = with_message_history.invoke(
+            {"messages": [HumanMessage(content=message_content)]},
+            config=config,
         )
-
-    # Process in the background
-    asyncio.create_task(process_input(user_id, text, response_url))
-
-    # Return an immediate acknowledgment
-    return JSONResponse(content={"status": "processing"}, status_code=202)
-
-def main(request):
-    """
-    Entry point for Google Cloud Function.
-    Converts the Google Cloud Function `request` into a FastAPI-compatible request.
-    """
-    try:
-        # Extract necessary request data
-        body = request.get_data(as_text=True) or ""
-        headers = {key: value for key, value in request.headers.items()}
-        method = request.method
-        path = request.path
-
-        # Use FastAPI TestClient to simulate handling of the request
-        from starlette.testclient import TestClient
-        client = TestClient(app)
-
-        # Call the FastAPI app and capture the response
-        response = client.request(method=method, url=path, headers=headers, data=body)
-
-        # Construct and return the Cloud Function-compatible response
-        return response.content, response.status_code, dict(response.headers)
     except Exception as e:
-        # Log the error and return a 500 status code
-        return {"error": f"Function error: {str(e)}"}, 500, {}
+        raise HTTPException(status_code=500, detail=str(e))
+
+    asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
+
+    return {"status": "success"}
+
+def process_message(message: str) -> str:
+    """
+    Modify or process the message as needed.
+    Here, we're just echoing back with a prefix.
+    """
+    return f"Echo: {message}"
+
+CHATWOOT_API_KEY = "<FMI>"
+
+async def send_response_to_chatwoot(conversation_id: int, response_text: str):
+    """
+    Send a message back to Chatwoot in the same conversation.
+    """
+
+    url = ""
+    headers = {
+        "Content-Type": "application/json",
+        "api_access_token": CHATWOOT_API_KEY
+    }
+    payload = {
+        "content": response_text,
+        "message_type": "outgoing",
+        "private": False  # Set to True if you want it to be internal
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        print(f"Response sent: {response.status_code}, {response.text}")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
