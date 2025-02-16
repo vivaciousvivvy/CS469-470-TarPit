@@ -1,4 +1,3 @@
-import os
 from fastapi import FastAPI, HTTPException, Depends, Request
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -23,13 +22,14 @@ load_dotenv()
 app = FastAPI()
 
 # Create the LLM
-chat_llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro-latest",
-    temperature=1,
-    safety_settings={
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    },
-)
+def get_llm():
+    return ChatGoogleGenerativeAI(
+        model="gemini-1.5-pro-latest",
+        temperature=1,
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        },
+    )
 
 # Simple store for conversation history
 store = {}
@@ -62,54 +62,39 @@ Act confused if the conversation topic changes.
 
 Example: "I'm not sure what you mean."""
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", f"""{persona}
-            {instructions}
-        """),
-        MessagesPlaceholder(variable_name="messages"),
-    ]
-)
+def get_prompt(persona: str, instructions: str):
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", f"""{persona}
+                {instructions}
+            """),
+            MessagesPlaceholder(variable_name="messages"),
+        ]
+    )
 
 def filter_messages(messages, k=10):
     """Filter the last k messages from the list of messages."""
     return messages[-k:]
 
-casual_chain = (
-    RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
-    | prompt
-    | chat_llm
-)
+def get_casual_chain():
+    return (
+        RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
+        | get_prompt(persona, instructions)
+        | get_llm()
+    )
 
-with_message_history = RunnableWithMessageHistory(
-    casual_chain,
-    get_session_history,
-    input_messages_key="messages",
-)
-
-class MessageRequest(BaseModel):
-    session_id: str
-    message: str
-
-@app.post("/chat/")
-async def chat(request: MessageRequest):
-    try:
-        config = {"configurable": {"session_id": request.session_id}}
-        response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=request.message)]},
-            config=config,
-        )
-        return {"response": response.content}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-
+def get_with_message_history():
+    return RunnableWithMessageHistory(
+        get_casual_chain(),
+        get_session_history,
+        input_messages_key="messages",
+    )
 
 # Chatwoot API Credentials
 
 
 @app.post("/chatwoot-webhook")
-async def chatwoot_webhook(request: Request):
+async def chatwoot_webhook(request: Request, with_message_history=Depends(get_with_message_history)):
     data = await request.json()
     print(f"Received Webhook: {data}")
     # Extract message details
@@ -118,23 +103,17 @@ async def chatwoot_webhook(request: Request):
 
     try:
         config = {"configurable": {"session_id": conversation_id}}
-        response_text = with_message_history.invoke(
+        response_text = await asyncio.to_thread(
+            with_message_history.invoke,
             {"messages": [HumanMessage(content=message_content)]},
             config=config,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
+    # asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
 
-    return {"status": "success"}
-
-def process_message(message: str) -> str:
-    """
-    Modify or process the message as needed.
-    Here, we're just echoing back with a prefix.
-    """
-    return f"Echo: {message}"
+    return {"status": response_text}
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
     """
