@@ -1,20 +1,23 @@
 import os
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\homey\AppData\Roaming\gcloud\application_default_credentials.json"
-import requests
 import time
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from a .env file if needed
 load_dotenv()
 
-# Import required LangChain components
-from langchain_google_genai import ChatGoogleGenerativeAI, HarmCategory, HarmBlockThreshold
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables.history import RunnableWithMessageHistory
+# Import required LangChain components
+from langchain_google_genai import (ChatGoogleGenerativeAI, HarmBlockThreshold,
+                                    HarmCategory)
 
 # =============================================================================
 # 1. Create the LLM instance

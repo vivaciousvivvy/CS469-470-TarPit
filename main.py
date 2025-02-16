@@ -1,19 +1,17 @@
 import os
-from flask import jsonify, Request
+import threading
+
+import requests
 from dotenv import load_dotenv
-from langchain_google_genai import (
-    ChatGoogleGenerativeAI,
-    HarmCategory,
-    HarmBlockThreshold,
-)
+from flask import Request, jsonify
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-import threading
-import requests
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_google_genai import (ChatGoogleGenerativeAI, HarmBlockThreshold,
+                                    HarmCategory)
 
 # Load environment variables
 load_dotenv()
