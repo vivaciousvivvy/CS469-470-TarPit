@@ -23,6 +23,7 @@ app = FastAPI()
 
 # Create the LLM
 def get_llm():
+    """Create and return an AI chat model with specific settings."""
     return ChatGoogleGenerativeAI(
         model="gemini-1.5-pro-latest",
         temperature=1,
@@ -35,6 +36,7 @@ def get_llm():
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    """Get or create session history to keep track of user conversations."""
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -63,6 +65,7 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."""
 
 def get_prompt(persona: str, instructions: str):
+    """Create a structured prompt using persona and instructions."""
     return ChatPromptTemplate.from_messages(
         [
             ("system", f"""{persona}
@@ -77,6 +80,7 @@ def filter_messages(messages, k=10):
     return messages[-k:]
 
 def get_casual_chain():
+    """Create and return a casual chat chain."""
     return (
         RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
         | get_prompt(persona, instructions)
@@ -84,6 +88,7 @@ def get_casual_chain():
     )
 
 def get_with_message_history():
+    """Connect the message processing chain with session history for a more natural conversation flow."""
     return RunnableWithMessageHistory(
         get_casual_chain(),
         get_session_history,
@@ -95,6 +100,14 @@ def get_with_message_history():
 
 @app.post("/chatwoot-webhook")
 async def chatwoot_webhook(request: Request, with_message_history=Depends(get_with_message_history)):
+    """Handle incoming messages from Chatwoot, process them with the AI model, and return a response.
+
+    Args:
+        request (Request): The HTTP request object.
+
+    Returns:
+        dict: A dictionary containing the status of the response.
+    """
     data = await request.json()
     print(f"Received Webhook: {data}")
     # Extract message details
@@ -116,9 +129,7 @@ async def chatwoot_webhook(request: Request, with_message_history=Depends(get_wi
     return {"status": response_text}
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
-    """
-    Send a message back to Chatwoot in the same conversation.
-    """
+    """Send a message back to Chatwoot in the same conversation."""
 
     url = ""
     headers = {
@@ -136,4 +147,5 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         print(f"Response sent: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
+    """Start the FastAPI server using Uvicorn."""
     uvicorn.run(app, host="0.0.0.0", port=8000)

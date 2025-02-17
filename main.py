@@ -23,7 +23,7 @@ load_dotenv()
 # FastAPI app
 app = FastAPI()
 
-# Create the LLM
+# Create the LLM and configure the AI model that will generate chatbot responses.
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -37,6 +37,7 @@ store = {}
 
 # Allow multiple sessions and fetch the session history
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    """Get or create session history to keep track of user conversations."""
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -67,6 +68,7 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
+# Set up the prompt template using the chatbot's persona and response rules.
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -99,11 +101,15 @@ with_message_history = RunnableWithMessageHistory(
 )
 
 class MessageRequest(BaseModel):
+    """Data model for chatbot API requests, containing session ID and user message."""
     session_id: str
     message: str
 
 @app.post("/chat/")
 async def chat(request: MessageRequest):
+    """API endpoint for chatbot interaction. 
+    It receives user messages and returns chatbot responses.
+    """
     try:
         config = {"configurable": {"session_id": request.session_id}}
         response = with_message_history.invoke(
@@ -121,6 +127,14 @@ async def chat(request: MessageRequest):
 
 @app.post("/chatwoot-webhook")
 async def chatwoot_webhook(request: Request):
+    """Receive messages from Chatwoot, process them using the AI model, and return a response.
+
+    Args:
+        request (Request): The HTTP request object.
+
+    Returns:
+        dict: A dictionary containing the status of the response.
+    """
     data = await request.json()
     print(f"Received Webhook: {data}")
     # Extract message details
@@ -170,4 +184,5 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         print(f"Response sent: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
+    """Start the FastAPI server using Uvicorn"""
     uvicorn.run(app, host="0.0.0.0", port=8000)

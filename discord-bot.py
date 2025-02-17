@@ -29,9 +29,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    """
-    Runs when the bot starts up and prints its status.
-    """
+    """Runs when the bot starts up and prints its status."""
     try:
         # Sync instantly to a specific guild (replace YOUR_GUILD_ID with your server's ID)
         synced_commands = await bot.tree.sync()
@@ -45,16 +43,12 @@ async def on_ready():
 # Define a slash command
 @bot.tree.command(name="ping", description="Check if the bot is responsive")
 async def ping(interaction: discord.Interaction):
-    """
-    Replies with 'Pong!' to check if the bot is responding.
-    """
+    """Replies with 'Pong!' to check if the bot is responding."""
     await interaction.response.send_message("Pong! 🏓")
 
 @bot.tree.command(name="echo", description="Echo the last message in the current channel")
 async def echo(interaction: discord.Interaction):
-    """
-    Fetches and repeats the last message from the channel.
-    """
+    """Fetches and repeats the last message from the channel."""
     print("Echo command called!")
     # Get the current channel
     channel = interaction.channel
@@ -86,9 +80,7 @@ chat_llm = ChatGoogleGenerativeAI(
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    """
-    Gets or creates a chat history for a user.
-    """
+    """Gets or creates a chat history for a user."""
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -138,9 +130,7 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 def filter_messages(messages, k=10):
-    """
-    Filter the last k messages from the list of messages.
-    """
+    """Filter the last k messages from the list of messages."""
     return messages[-k:]
 
 # AI processing chain
@@ -176,9 +166,7 @@ with_message_history = RunnableWithMessageHistory(
 # Usage: !butcher <Message>
 @bot.command(name="butcher", help="Interact with the Starve the Butcher model.")
 async def butcher(ctx, *, message: str):
-    """
-    Chat command to interact with the AI.
-    """
+    """ Send a message using the /butcher chat command to interact with the AI."""
     try:
         config = {"configurable": {"session_id": str(ctx.author.id)}}
         response = with_message_history.invoke(
