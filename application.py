@@ -10,13 +10,17 @@ db = SQLAlchemy(app)
 #     db.create_all()
 
 class Drink(db.Model):
-    """Represents a drink with a name and a short description."""
+    """
+    Represents a drink with a name and a short description.
+    """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     description = db.Column(db.String(120))
 
     def __repr__(self):
-        """Returns a string with drink info."""
+        """
+        Returns a string with drink info.
+        """
         return f"({self.name} - {self.description})"
 
 # Create the database tables
@@ -25,12 +29,16 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    """Root endpoint that returns a simple greeting message."""
+    """
+    Root endpoint that returns a simple greeting message.
+    """
     return 'Hello!'
 
 @app.route('/drinks')
 def get_drinks():
-    """Retrieve all drinks from the database and return them as JSON."""
+    """
+    Retrieve all drinks from the database and return them as JSON.
+    """
     drinks = Drink.query.all()
     output = []
     for drink in drinks:
@@ -41,13 +49,16 @@ def get_drinks():
 
 @app.route('/drinks/<id>')
 def get_drink(id):
-    """Get a single drink by ID and return it as JSON."""
+    """
+    Get a single drink by ID and return it as JSON.
+    """
     drink = Drink.query.get_or_404(id)
     return {"name": drink.name, "description": drink.description}
 
 @app.route('/drinks', methods=['POST'])
 def add_drink():
-    """Add a new drink to the database.
+    """
+    Add a new drink to the database.
     
     Expects JSON data with 'name' and 'description' fields.
     
@@ -62,7 +73,9 @@ def add_drink():
 
 @app.route('/drinks/<id>', methods=['DELETE'])
 def delete_drink(id):
-    """Delete a drink from the database using its ID."""
+    """
+    Delete a drink from the database using its ID.
+    """
     drink = Drink.query.get(id)
     if drink in None:
         return {"error": "not found"}
