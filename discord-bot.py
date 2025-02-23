@@ -29,7 +29,15 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    """Runs when the bot starts up and prints its status."""
+    """Runs when the bot starts up and prints its status.
+    This function synchronizes commands with Discord and logs the bot's status.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     try:
         # Sync instantly to a specific guild (replace YOUR_GUILD_ID with your server's ID)
         synced_commands = await bot.tree.sync()
@@ -43,12 +51,26 @@ async def on_ready():
 # Define a slash command
 @bot.tree.command(name="ping", description="Check if the bot is responsive")
 async def ping(interaction: discord.Interaction):
-    """Replies with 'Pong!' to check if the bot is responding."""
+    """Replies with 'Pong!' to check if the bot is responding.
+    
+    Args:
+        interaction (discord.Interaction): The interaction object representing the command call.
+    
+    Returns:
+        None
+    """
     await interaction.response.send_message("Pong! 🏓")
 
 @bot.tree.command(name="echo", description="Echo the last message in the current channel")
 async def echo(interaction: discord.Interaction):
-    """Fetches and repeats the last message from the channel."""
+    """Fetches and repeats the last message from the channel.
+    
+    Args:
+        interaction (discord.Interaction): The interaction object representing the command call.
+    
+    Returns:
+        None
+    """
     print("Echo command called!")
     # Get the current channel
     channel = interaction.channel
@@ -80,7 +102,14 @@ chat_llm = ChatGoogleGenerativeAI(
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    """Gets or creates a chat history for a user."""
+    """Gets or creates a chat history for a user.
+    
+    Args:
+        session_id (str): A unique identifier representing a user's session.
+    
+    Returns:
+        BaseChatMessageHistory: The user's chat history for maintaining conversation context.
+    """
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -130,7 +159,15 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 def filter_messages(messages, k=10):
-    """Filter the last k messages from the list of messages."""
+    """Keeps only the last k messages in memory to maintain relevant context.
+    
+    Args:
+        messages (list): List of previous chat messages.
+        k (int): Number of messages to retain.
+    
+    Returns:
+        list: Filtered list containing only the last k messages.
+    """
     return messages[-k:]
 
 # AI processing chain
@@ -166,7 +203,15 @@ with_message_history = RunnableWithMessageHistory(
 # Usage: !butcher <Message>
 @bot.command(name="butcher", help="Interact with the Starve the Butcher model.")
 async def butcher(ctx, *, message: str):
-    """ Send a message using the /butcher chat command to interact with the AI."""
+    """Sends a message using the !butcher command to interact with the AI model.
+    
+    Args:
+        ctx (commands.Context): The context of the command execution.
+        message (str): The message to be sent to the AI.
+    
+    Returns:
+        None
+    """
     try:
         config = {"configurable": {"session_id": str(ctx.author.id)}}
         response = with_message_history.invoke(

@@ -23,7 +23,14 @@ app = FastAPI()
 
 # Create the LLM
 def get_llm():
-    """Create and return an AI chat model with specific settings."""
+    """Create and return a Google Generative AI chat model with specific settings.
+
+    Args:
+        None
+
+    Returns:
+        ChatGoogleGenerativeAI: An instance of the chat model configured with safety settings and temperature.
+    """
     return ChatGoogleGenerativeAI(
         model="gemini-1.5-pro-latest",
         temperature=1,
@@ -36,7 +43,14 @@ def get_llm():
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    """Get or create session history to keep track of user conversations."""
+    """Gets or creates a chat history for a user.
+    
+    Args:
+        session_id (str): A unique identifier representing a user's session.
+    
+    Returns:
+        BaseChatMessageHistory: The user's chat history for maintaining conversation context.
+    """
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -65,7 +79,15 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."""
 
 def get_prompt(persona: str, instructions: str):
-    """Create a structured prompt using persona and instructions."""
+    """Create a structured prompt for the AI using the persona and instructions.
+
+    Args:
+        persona (str): The personality and background of the AI.
+        instructions (str): Guidelines for how the AI should respond.
+
+    Returns:
+        ChatPromptTemplate: A template for generating prompts with the persona and instructions.
+    """
     return ChatPromptTemplate.from_messages(
         [
             ("system", f"""{persona}
@@ -76,11 +98,26 @@ def get_prompt(persona: str, instructions: str):
     )
 
 def filter_messages(messages, k=10):
-    """Filter the last k messages from the list of messages."""
+    """Keeps only the last k messages in memory to maintain relevant context.
+    
+    Args:
+        messages (list): List of previous chat messages.
+        k (int): Number of messages to retain.
+    
+    Returns:
+        list: Filtered list containing only the last k messages.
+    """
     return messages[-k:]
 
 def get_casual_chain():
-    """Create and return a casual chat chain."""
+    """Create and return a casual chat chain for processing messages.
+
+    Args:
+        None
+
+    Returns:
+        RunnablePassthrough: A chain that processes messages using the AI model.
+    """
     return (
         RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
         | get_prompt(persona, instructions)
@@ -88,7 +125,14 @@ def get_casual_chain():
     )
 
 def get_with_message_history():
-    """Connect the message processing chain with session history for a more natural conversation flow."""
+    """Connect the message processing chain with session history for a more natural conversation flow.
+
+    Args:
+        None
+
+    Returns:
+        RunnableWithMessageHistory: A chain that maintains conversation history for each session.
+    """
     return RunnableWithMessageHistory(
         get_casual_chain(),
         get_session_history,
@@ -129,7 +173,15 @@ async def chatwoot_webhook(request: Request, with_message_history=Depends(get_wi
     return {"status": response_text}
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
-    """Send a message back to Chatwoot in the same conversation."""
+    """Send a response message back to a Chatwoot conversation.
+
+    Args:
+        conversation_id (int): The ID of the Chatwoot conversation where the response will be sent.
+        response_text (str): The text of the response to be sent.
+
+    Returns:
+        None: This function does not return anything but prints the HTTP response status and text.
+    """
 
     url = ""
     headers = {
@@ -147,5 +199,13 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         print(f"Response sent: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
-    """Start the FastAPI server using Uvicorn."""
+    """
+    Start the FastAPI server using Uvicorn.
+
+    Args:
+        None
+
+    Returns:
+        None: This block starts the server and keeps it running.
+    """
     uvicorn.run(app, host="0.0.0.0", port=8000)
