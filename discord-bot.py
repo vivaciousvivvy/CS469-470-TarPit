@@ -90,6 +90,13 @@ async def echo(interaction: discord.Interaction):
 
 
 # LangChain Configuration
+"""A Google Generative AI chat model configured for conversational tasks.
+
+Attributes:
+    model (str): The model version to use
+    temperature (float): Controls randomness in responses
+    safety_settings (dict): Configures safety filters for content moderation.
+"""
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -146,6 +153,13 @@ Be interested and receptive to new financial ideas, but act clueless about them.
 """
 
 # Set up the AI chat prompt
+"""A structured prompt template for the AI, combining the persona and instructions.
+
+Attributes:
+    persona (str): The personality and background of the AI.
+    instructions (str): Guidelines for how the AI should respond.
+    MessagesPlaceholder: A placeholder for the chat message history.
+"""
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -178,6 +192,13 @@ casual_chain = (
 )
 
 # Keep message history per user
+"""A runnable chain that maintains conversation history for each session.
+
+Attributes:
+    casual_chain: The chain of runnables for processing messages.
+    get_session_history: Function to retrieve or create session-specific chat history.
+    input_messages_key (str): The key for accessing messages in the input.
+"""
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,

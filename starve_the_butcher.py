@@ -16,6 +16,13 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 
 # Create the LLM
+"""A Google Generative AI chat model configured for conversational tasks.
+
+Attributes:
+    model (str): The model version to use
+    temperature (float): Controls randomness in responses
+    safety_settings (dict): Configures safety filters for content moderation.
+"""
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -69,7 +76,15 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
-# Create a structured prompt for the AI using the persona and instructions
+
+
+"""A structured prompt template for the AI, combining the persona and instructions.
+
+Attributes:
+    persona (str): The personality and background of the AI.
+    instructions (str): Guidelines for how the AI should respond.
+    MessagesPlaceholder: A placeholder for the chat message history.
+"""
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -106,7 +121,13 @@ casual_chain = (
     | chat_llm
 )
 
-# Connect the message processing chain with session history for a more natural conversation flow
+"""A runnable chain that maintains conversation history for each session.
+
+Attributes:
+    casual_chain: The chain of runnables for processing messages.
+    get_session_history: Function to retrieve or create session-specific chat history.
+    input_messages_key (str): The key for accessing messages in the input.
+"""
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,
@@ -118,6 +139,14 @@ config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
 # Start an interactive chat loop
 while True:
+    """An interactive chat loop that processes user input and generates AI responses.
+
+    Steps:
+    1. Prompts the user for input.
+    2. Exits if the user presses Enter without typing anything.
+    3. Processes the user input using the AI model and session history.
+    4. Prints the AI's response.
+    """
     user_input = input("Pig Butcher message: ")
     # exit if user hits enter with no input
     if not user_input:

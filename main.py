@@ -24,6 +24,13 @@ load_dotenv()
 app = FastAPI()
 
 # Create the LLM and configure the AI model that will generate chatbot responses.
+"""A Google Generative AI chat model configured for conversational tasks.
+
+Attributes:
+    model (str): The model version to use
+    temperature (float): Controls randomness in responses
+    safety_settings (dict): Configures safety filters for content moderation.
+"""
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -75,7 +82,15 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
-# Set up the prompt template using the chatbot's persona and response rules.
+
+
+"""A structured prompt template for the AI, combining the persona and instructions.
+
+Attributes:
+    persona (str): The personality and background of the AI.
+    instructions (str): Guidelines for how the AI should respond.
+    MessagesPlaceholder: A placeholder for the chat message history.
+"""
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -109,6 +124,13 @@ casual_chain = (
 )
 
 # Create the runnable with message history
+"""A runnable chain that maintains conversation history for each session.
+
+Attributes:
+    casual_chain: The chain of runnables for processing messages.
+    get_session_history: Function to retrieve or create session-specific chat history.
+    input_messages_key (str): The key for accessing messages in the input.
+"""
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,
