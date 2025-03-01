@@ -61,7 +61,7 @@ class ProfileGenerator:
         return bio.text
 
     def generate_picture(self, bio, name):
-
+        
         date = datetime.now().strftime("%Y-%m-%d")
         name_str = name.lower().replace(" ", "_").strip()
         output_file_name = f"{name_str}_{date}.png"
@@ -79,15 +79,24 @@ class ProfileGenerator:
             # add_watermark=False,
             # seed=100,
             aspect_ratio="1:1",
-            safety_filter_level="block_some",
+            person_generation="allow_adult",
             
             #currently person_generation is disabled, I asked for permission to create this from google.
             #person_generation="allow_adult",
         )
-        images[0].save(location=f'{images_folder}/{output_file_name}', include_generation_parameters=False)
-        print(f"Created output image using {len(images[0]._image_bytes)} bytes")
-        # Example response:
-        # Created output image using 1234567 bytes
+        if not images:
+            print("No images were generated")
+            return
+        else:
+            print("Images were generated")
+        
+        try:
+            images[0].save(location=f'{images_folder}/{output_file_name}', include_generation_parameters=False)
+            print(f"Created output image using {len(images[0]._image_bytes)} bytes")
+        except IndexError:
+            raise Exception("Image generation failed - no images were returned")
+        except Exception as e:
+            raise Exception(f"Error saving generated image: {str(e)}")
 
 
         def generate_full(self):
@@ -96,4 +105,6 @@ class ProfileGenerator:
 
 if __name__ == "__main__":
     generator = ProfileGenerator()
-    generator.generate_name()
+    name = generator.generate_name()
+    bio = generator.generate_bio(name)
+    generator.generate_picture(bio, name)
