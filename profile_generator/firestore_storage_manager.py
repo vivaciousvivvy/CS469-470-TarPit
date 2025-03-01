@@ -1,10 +1,10 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
-from google.cloud import storage as gcs
+from google.cloud import storage
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 
@@ -16,8 +16,8 @@ class PeopleDatabase:
         self.cred = credentials.ApplicationDefault()
         firebase_admin.initialize_app(self.cred)
         self.db = firestore.client()
-        self.storage_client = gcs.Client()
-        self.bucket_name = "pigbutchering-capstone.appspot.com"
+        self.storage_client = storage.Client()
+        self.bucket_name = "pigbutchering-profile-pictures"
         self.bucket = self.storage_client.bucket(self.bucket_name)
 
         # Create the local images folder if it doesn't exist
@@ -27,28 +27,29 @@ class PeopleDatabase:
     def _save_image(self, image_path):
         """Helper method to save an image file and return the stored path"""
         file_extension = os.path.splitext(image_path)[1]
+        
+        # old filename = (lower_case_name_yyyy-mm-dd.png), ex = elanor_grace_davies_2024-01-05.png
         new_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}"
         blob = self.bucket.blob(f"images/{new_filename}")
 
         # Upload the image to Google Cloud Storage
         blob.upload_from_filename(image_path)
 
-        # Make the image publicly accessible
-        blob.make_public()
-
         # Return the public URL of the image
         return blob.public_url
 
 
 
-    def add_person(self, name, bio, image_paths=None):
+    def add_person(self, name, bio, ethnicity, demeanor, image_paths=None):
         """Add a new person with optional multiple images"""
         try:
             # Create person document
             person_ref = self.db.collection('people').document()
             person_data = {
                 'name': name,
-                'bio': bio, 
+                'bio': bio,
+                'ethnicity': ethnicity,
+                'demeanor': demeanor,
                 'date_created': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             
@@ -138,17 +139,21 @@ class PeopleDatabase:
         person = self.get_person(person_id)
         return person.get('images', []) if person else []
 
-    def update_person(self, person_id, name=None, bio=None):
+    def update_person(self, person_id, name=None, bio=None, ethnicity=None, demeanor=None):
         """Update a person's basic information"""
         try:
             person_ref = self.db.collection('people').document(person_id)
             if not person_ref.get().exists:
                 raise Exception("Person not found")
 
-            update_data = {}
+            update_data = {} 
             if name:
                 update_data['name'] = name
             if bio:
+                update_data['bio'] = bio
+            if ethnicity:
+                update_data['ethnicity'] = ethnicity
+            if demeanor:
                 update_data['bio'] = bio
 
             if update_data:
