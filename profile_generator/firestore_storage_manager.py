@@ -5,8 +5,37 @@ from google.cloud import storage
 
 import os
 from datetime import datetime
+from typing import List, Dict, Union
 
+"""
+People info is stored as so:
+people {
+    person_id: {
+        name: asdf
+        pictures: [pic_id1, ..]
+        sex: asdf
+        bio: asdf
+        ethnicity: asdf
+        city: dsaf
+        conversation_history: {
+            conversation_id_1: [
+               {
+                    "speaker": "victim" or "butcher"
+                    "text": "asdfdsaf",
+                    "timestamp": "2025-01-27 10:00:00"
+                },
+                {
+                    "speaker": "victim" or "butcher",
+                    "text": "Hfjjrm",
+                    "timestamp": "2025-01-27 10:00:05"
+                }
+            ],
+            conversation_id_2: [ ... ]
+    }
+        }
+}
 
+"""
 
 
 class PeopleDatabase:
@@ -50,7 +79,8 @@ class PeopleDatabase:
                 'bio': bio,
                 'ethnicity': ethnicity,
                 'demeanor': demeanor,
-                'date_created': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                'date_created': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'conversation_history': {} #init empty convo history
             }
             
             # Add images if provided
@@ -196,6 +226,66 @@ class PeopleDatabase:
             person['id'] = doc.id
             people.append(person)
         return people
+                                                                                        #    
+    def add_message_to_conversation(self, person_id: str, conversation_id: str, message: Dict[str, Union[str, datetime]]):
+        """
+        Adds a message to a victim on firestore.
+
+        Args:
+            person_id: The ID of the person.
+            conversation_id: The ID of the conversation (not sure what this should be, perhaps just consecutive ints)
+            message: A dictionary containing the message details.
+                    {"speaker": "victim" or "butcher", "text": "asdf", "timestamp": "2025-10-27 10:00:00"}
+        """
+        try:
+            person_ref = self.db.collection('people').document(person_id)
+            person = person_ref.get()
+
+            if not person.exists:
+                raise Exception("Person not found")
+
+            person_data = person.to_dict()
+            conversation_history = person_data.get('conversation_history', {})
+
+            if conversation_id not in conversation_history:
+                conversation_history[conversation_id] = []
+
+            # Add the message to the conversation
+            conversation_history[conversation_id].append(message)
+
+            # Update the document in Firestore
+            person_ref.update({'conversation_history': conversation_history})
+            return True
+
+        except Exception as e:
+            raise Exception(f"Error adding message to conversation: {str(e)}")
+
+    def get_conversation_history(self, person_id: str, conversation_id: str) -> List[Dict[str, Union[str, datetime]]]:
+        """
+        Retrieves the conversation history for a specific person and conversation.
+
+        Args:
+            person_id: The ID of the person.
+            conversation_id: The ID of the conversation.
+
+        Returns:
+            A list of messages in the conversation, or an empty list if no conversation is found.
+        """
+        try:
+            person_ref = self.db.collection('people').document(person_id)
+            person = person_ref.get()
+
+            if not person.exists:
+                raise Exception("Person not found")
+
+            person_data = person.to_dict()
+            conversation_history = person_data.get('conversation_history', {})
+
+            return conversation_history.get(conversation_id, [])
+
+        except Exception as e:
+             raise Exception(f"Error getting conversation history: {str(e)}")
+             
 
 # Example usage
 if __name__ == "__main__":

@@ -15,3 +15,5 @@ lib64
 pyvenv.cfg
 *.png
 .vscode/settings.json
+profile_generator/people.db
+env
