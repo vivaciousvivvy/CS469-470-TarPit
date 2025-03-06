@@ -19,12 +19,12 @@ class Person(Base):
     date_of_birth = Column(String(50))
     ethnicity = Column(String(50))
 
-    educational_background = Column(String(50))
+    '''educational_background = Column(String(50))
     professional_background = Column(String(50))
     interests = Column(Text)
     financial_assets = Column(Text)
     crypto_fluency_level = Column(String(50))
-    demeanor = Column(String(50))
+    demeanor = Column(String(50))'''
 
     date_created = Column(String(50), default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     image_list = relationship("Image", back_populates="person", cascade="all, delete-orphan")
@@ -38,7 +38,6 @@ class Image(Base):
     image_path = Column(String(255), nullable=False)
 
     person = relationship("Person", back_populates="image_list")
-
 
 
 class PeopleDatabase():
