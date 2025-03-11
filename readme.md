@@ -1,8 +1,8 @@
 # Pig Butchering Scammer Chatbot
-Capstone Project for Portland State University FW24-25
-Team Members: Vivek Srirama, Jadyn Harris, Adam Rodgers, Riley Woodruff, Abdirizak Duale, Jessie Le
-Team Lead: Vivek Srirama
-Supervisor: Bruce Irvin
+Capstone Project for Portland State University FW24-25  
+Team Members: Vivek Srirama, Jadyn Harris, Adam Rodgers, Riley Woodruff, Abdirizak Duale, Jessie Le  
+Team Lead: Vivek Srirama  
+Supervisor: Bruce Irvin  
 Sponsor: Wu-chang Feng
 
 ## Project Summary
