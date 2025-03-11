@@ -4,3 +4,16 @@ __pycache__
 .env
 SetKeys.ps1
 keys.txt
+install
+instance
+PIL
+instance
+bin
+include
+lib
+lib64
+pyvenv.cfg
+*.png
+.vscode/settings.json
+profile_generator/people.db
+env
