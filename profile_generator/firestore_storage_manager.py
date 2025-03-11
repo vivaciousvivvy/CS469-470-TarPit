@@ -6,33 +6,34 @@ from google.cloud import storage
 import os
 from datetime import datetime
 from typing import List, Dict, Union
+import json
+
+
+
+"""
+Conversation_id is unique and comes from chatwoot
+"""
 
 """
 People info is stored as so:
 people {
-    person_id: {
+    victim_id: {
         name: asdf
-        pictures: [pic_id1, ..]
-        sex: asdf
+        pictures: [location/name (found in google bucket), ..]
         bio: asdf
         ethnicity: asdf
         city: dsaf
-        conversation_history: {
-            conversation_id_1: [
-               {
-                    "speaker": "victim" or "butcher"
-                    "text": "asdfdsaf",
-                    "timestamp": "2025-01-27 10:00:00"
-                },
-                {
-                    "speaker": "victim" or "butcher",
-                    "text": "Hfjjrm",
-                    "timestamp": "2025-01-27 10:00:05"
-                }
-            ],
-            conversation_id_2: [ ... ]
+        conversation_history: [
+            {
+                "speaker": "victim" or "butcher"
+                "text": "asdfdsaf",
+            },
+            {
+                "speaker": "victim" or "butcher",
+                "text": "Hfjjrm",
+            }
+        ]
     }
-        }
 }
 
 """
@@ -53,21 +54,19 @@ class PeopleDatabase:
         self.images_folder = images_folder
         os.makedirs(self.images_folder, exist_ok=True)
 
-    def _save_image(self, image_path):
-        """Helper method to save an image file and return the stored path"""
-        file_extension = os.path.splitext(image_path)[1]
-        
-        # old filename = (lower_case_name_yyyy-mm-dd.png), ex = elanor_grace_davies_2024-01-05.png
-        new_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}"
-        blob = self.bucket.blob(f"images/{new_filename}")
 
+    def _save_image(self, victim_id, image_path):
+        """Helper method to save an image file"""
+        file_name = os.path.basename(image_path)
+        
+        # old filename = (lower_case_name_yyyy-mm-dd-HH-MM-SS.png), ex = elanor_grace_davies_2024-01-05_23-45-01.png
+        blob = self.bucket.blob(f"{victim_id}/{file_name}")
+ 
         # Upload the image to Google Cloud Storage
         blob.upload_from_filename(image_path)
 
-        # Return the public URL of the image
-        return blob.public_url
-
-
+    def set_profile_settings(victim_id, name=None, bio=None):
+        pass
 
     def add_person(self, name, bio, ethnicity, demeanor, image_paths=None):
         """Add a new person with optional multiple images"""
@@ -80,7 +79,7 @@ class PeopleDatabase:
                 'ethnicity': ethnicity,
                 'demeanor': demeanor,
                 'date_created': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                'conversation_history': {} #init empty convo history
+                'conversation_history': [] #init empty convo history
             }
             
             # Add images if provided
@@ -97,10 +96,10 @@ class PeopleDatabase:
         except Exception as e:
             raise Exception(f"Error adding person: {str(e)}")
 
-    def add_images_to_person(self, person_id, image_paths, captions=None):
+    def add_images_to_person(self, victim_id, image_paths, captions=None):
         """Add multiple images to an existing person"""
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             person = person_ref.get()
             
             if not person.exists:
@@ -130,10 +129,10 @@ class PeopleDatabase:
         except Exception as e:
             raise Exception(f"Error adding images: {str(e)}")
 
-    def remove_image(self, person_id, image_url):
+    def remove_image(self, victim_id, image_url):
         """Remove a specific image"""
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             person = person_ref.get()
             
             if not person.exists:
@@ -158,21 +157,21 @@ class PeopleDatabase:
         except Exception as e:
             raise Exception(f"Error removing image: {str(e)}")
 
-    def get_person(self, person_id):
+    def get_person(self, victim_id):
         """Retrieve a person by ID"""
-        person_ref = self.db.collection('people').document(person_id)
+        person_ref = self.db.collection('people').document(victim_id)
         person = person_ref.get()
         return person.to_dict() if person.exists else None
 
-    def get_person_images(self, person_id):
+    def get_person_images(self, victim_id):
         """Get all images for a person"""
-        person = self.get_person(person_id)
+        person = self.get_person(victim_id)
         return person.get('images', []) if person else []
 
-    def update_person(self, person_id, name=None, bio=None, ethnicity=None, demeanor=None):
+    def update_person(self, victim_id, name=None, bio=None, ethnicity=None, demeanor=None):
         """Update a person's basic information"""
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             if not person_ref.get().exists:
                 raise Exception("Person not found")
 
@@ -193,10 +192,12 @@ class PeopleDatabase:
         except Exception as e:
             raise Exception(f"Error updating person: {str(e)}")
 
-    def delete_person(self, person_id):
-        """Delete a person and all their associated images"""
+    def delete_person(self, victim_id):
+        """Delete a person and all their associated images
+        Currently untested
+        """
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             person = person_ref.get()
             
             if not person.exists:
@@ -227,31 +228,27 @@ class PeopleDatabase:
             people.append(person)
         return people
                                                                                         #    
-    def add_message_to_conversation(self, person_id: str, conversation_id: str, message: Dict[str, Union[str, datetime]]):
+    def add_message_to_conversation(self, victim_id, message):
         """
-        Adds a message to a victim on firestore.
+        Adds a message to a victim's conversation history on firestore.
 
         Args:
-            person_id: The ID of the person.
-            conversation_id: The ID of the conversation (not sure what this should be, perhaps just consecutive ints)
+            victim_id: The ID of the person.
             message: A dictionary containing the message details.
                     {"speaker": "victim" or "butcher", "text": "asdf", "timestamp": "2025-10-27 10:00:00"}
         """
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             person = person_ref.get()
 
             if not person.exists:
                 raise Exception("Person not found")
 
             person_data = person.to_dict()
-            conversation_history = person_data.get('conversation_history', {})
-
-            if conversation_id not in conversation_history:
-                conversation_history[conversation_id] = []
+            conversation_history = person_data.get('conversation_history', [])
 
             # Add the message to the conversation
-            conversation_history[conversation_id].append(message)
+            conversation_history.append(message)
 
             # Update the document in Firestore
             person_ref.update({'conversation_history': conversation_history})
@@ -260,19 +257,18 @@ class PeopleDatabase:
         except Exception as e:
             raise Exception(f"Error adding message to conversation: {str(e)}")
 
-    def get_conversation_history(self, person_id: str, conversation_id: str) -> List[Dict[str, Union[str, datetime]]]:
+    def get_conversation_history(self, victim_id: str):
         """
         Retrieves the conversation history for a specific person and conversation.
 
         Args:
-            person_id: The ID of the person.
-            conversation_id: The ID of the conversation.
+            victim_id: The ID of the person.
 
         Returns:
-            A list of messages in the conversation, or an empty list if no conversation is found.
+            A list of all messages in the conversation, or an empty list if no conversation is found.
         """
         try:
-            person_ref = self.db.collection('people').document(person_id)
+            person_ref = self.db.collection('people').document(victim_id)
             person = person_ref.get()
 
             if not person.exists:
@@ -281,16 +277,50 @@ class PeopleDatabase:
             person_data = person.to_dict()
             conversation_history = person_data.get('conversation_history', {})
 
-            return conversation_history.get(conversation_id, [])
+            return conversation_history
 
         except Exception as e:
              raise Exception(f"Error getting conversation history: {str(e)}")
              
 
+    def change_victim_id(self, old_id, new_id):
+        """
+        Changes the id of a victim from an old victim id to a new victim id.
+
+        Args:
+            old_id: The currently in use ID of the victim.
+            new_id: The new ID for the victim.
+        """
+        try:
+            person_ref = self.db.collection('people').document(old_id)
+            person = person_ref.get()
+
+            if not person.exists:
+                raise Exception("Person not found")
+
+            person_data = person.to_dict()
+
+
+            # Create person document
+            person_data = {
+                'name': person_data["name"],
+                'bio': person_data["bio"],
+                'conversation_history': person_data["conversation_history"]
+            }
+
+            person_ref.set(person_data)
+        
+        except Exception as e:
+             raise Exception(f"Error changing victim ID: {str(e)}")
+
 # Example usage
 if __name__ == "__main__":
     db = PeopleDatabase()
     try:
-        print("do the things here")
+        test_message = {
+            "speaker": "victim", # or "butcher"
+            "text": "asdf"
+        }
+        print(db.get_conversation_history("54"))
     except Exception as e:
         print(f"Error: {str(e)}")

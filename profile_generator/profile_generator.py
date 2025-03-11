@@ -21,7 +21,6 @@ image_bytes = query({
     "inputs": "Astronaut riding a horse",
 })
 
-# You can access the image with PIL.Image for example
 
 image = Image.open(io.BytesIO(image_bytes))"""
 
@@ -37,13 +36,13 @@ class ProfileGenerator:
         vertexai.init(project=self.PROJECT_ID, location="us-west1")
 
     def generate_name(self):
-        model = GenerativeModel("gemini-1.5-flash-002")
+        model = GenerativeModel("gemini-2.0-flash-lite")
         name = model.generate_content(f"Generate me a full name, including middle name, for an individual")
         print(name.text)
         return(name.text)
 
     def generate_bio(self, name):
-        model = GenerativeModel("gemini-1.5-flash-002")
+        model = GenerativeModel("gemini-2.0-flash-lite")
 
         bio = model.generate_content(f"Generate me a 1-2 paragraph long bio for an individual with the name {name}. \
                                       This individual should be vulnerable, being older in age and/or lonely, \
@@ -62,9 +61,9 @@ class ProfileGenerator:
 
     def generate_picture(self, bio, name):
         
-        date = datetime.now().strftime("%Y-%m-%d")
+        date_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         name_str = name.lower().replace(" ", "_").strip()
-        output_file_name = f"{name_str}_{date}.png"
+        output_file_name = f"{name_str}_{date_time}.png"
 
         prompt = f"Generate an image for someone with the name {name} and the bio {bio}. \
                 Make this picture an unclear selfie"
