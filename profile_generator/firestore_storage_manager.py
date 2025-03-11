@@ -54,6 +54,14 @@ class PeopleDatabase:
         self.images_folder = images_folder
         os.makedirs(self.images_folder, exist_ok=True)
 
+    def get_bio(self, victim_id):
+            person_ref = self.db.collection('people').document(victim_id)
+            person = person_ref.get()
+            person_data = person.to_dict()
+            bio = person_data.get('bio')
+            return bio
+
+
 
     def _save_image(self, victim_id, image_path):
         """Helper method to save an image file"""
@@ -180,10 +188,6 @@ class PeopleDatabase:
                 update_data['name'] = name
             if bio:
                 update_data['bio'] = bio
-            if ethnicity:
-                update_data['ethnicity'] = ethnicity
-            if demeanor:
-                update_data['bio'] = bio
 
             if update_data:
                 person_ref.update(update_data)
@@ -293,6 +297,7 @@ class PeopleDatabase:
         """
         try:
             person_ref = self.db.collection('people').document(old_id)
+            new_person_ref = self.db.collection('people').document(new_id)
             person = person_ref.get()
 
             if not person.exists:
@@ -300,15 +305,19 @@ class PeopleDatabase:
 
             person_data = person.to_dict()
 
-
             # Create person document
             person_data = {
                 'name': person_data["name"],
                 'bio': person_data["bio"],
-                'conversation_history': person_data["conversation_history"]
+                'conversation_history': person_data["conversation_history"],
+                "old_id": old_id
+                
             }
 
-            person_ref.set(person_data)
+            new_person_ref.set(person_data)
+            person_ref.delete()
+            return True
+            
         
         except Exception as e:
              raise Exception(f"Error changing victim ID: {str(e)}")
@@ -318,9 +327,12 @@ if __name__ == "__main__":
     db = PeopleDatabase()
     try:
         test_message = {
-            "speaker": "victim", # or "butcher"
-            "text": "asdf"
+            "speaker": "butcher", # or "butcher"
+            "text": "i want ur money"
         }
-        print(db.get_conversation_history("54"))
+        #print(db.add_message_to_conversation("54", test_message))
+        #print(db.get_conversation_history("54"))
+        print(db.get_bio("54"))
+
     except Exception as e:
         print(f"Error: {str(e)}")
