@@ -1,11 +1,13 @@
 # Pig Butchering Scammer Chatbot
 Capstone Project for Portland State University FW24-25  
+
 Team Members: Vivek Srirama, Jadyn Harris, Adam Rodgers, Riley Woodruff, Abdirizak Duale, Jessie Le  
 Team Lead: Vivek Srirama  
 Supervisor: Bruce Irvin  
 Sponsor: Wu-chang Feng
 
 ## Project Summary
+The purpose of this project is to build a conversation chatbot that detect and prevent pig-butchering scammers (long-term scammers) from deceiving victims into investing money in fraudulent schemes.
 
 ## What is Chatwoot?
 Chatwoot is an open-source engagement platform that helps manage conversations across different messaging channels like Messengers, SMS, Instagram. It provides a unified inbox for users to interact with with others efficiently.
