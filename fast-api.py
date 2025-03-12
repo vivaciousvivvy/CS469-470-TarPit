@@ -15,11 +15,14 @@ from langchain_core.runnables import RunnablePassthrough
 import httpx
 import asyncio
 import uvicorn
+from profile_generator import firestore_storage_manager, profile_generator
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI()
+generator = profile_generator.ProfileGenerator()
+db = firestore_storage_manager.PeopleDatabase()
 
 # Create the LLM
 def get_llm():
@@ -94,26 +97,54 @@ def get_with_message_history():
 
 
 @app.post("/chatwoot-webhook")
-async def chatwoot_webhook(request: Request, with_message_history=Depends(get_with_message_history)):
+async def chatwoot_webhook(request: Request):
     data = await request.json()
     print(f"Received Webhook: {data}")
-    # Extract message details
-    conversation_id = data["id"]
+
+    # Extract conversation details
+    conversation_id = str(data["id"])  # Ensure ID is a string
     message_content = data["messages"][0]["content"]
 
+    if db.get_person(conversation_id) is None:
+        name = generator.generate_name()
+        bio = generator.generate_bio(name)
+        old_id = db.add_person(name, bio, "test", "test")
+        db.change_victim_id(old_id, conversation_id)
+
     try:
+        # Retrieve conversation history from Firestore
+        conversation_history = db.get_conversation_history(conversation_id)
+
+        # Ensure messages are formatted as BaseMessages
+        formatted_history = [
+            HumanMessage(content=msg["text"]) for msg in conversation_history
+        ]
+
+        # Add the new message to the conversation
+        messages = formatted_history + [HumanMessage(content=message_content)]
+
+        # Generate response using LLM
         config = {"configurable": {"session_id": conversation_id}}
         response_text = await asyncio.to_thread(
-            with_message_history.invoke,
-            {"messages": [HumanMessage(content=message_content)]},
+            get_llm().invoke,
+            messages,  # Pass as a list, not a dictionary
             config=config,
         )
+
+        # Store new message in Firestore
+        db.add_message_to_conversation(
+            conversation_id, {"speaker": "victim", "text": message_content}
+        )
+        db.add_message_to_conversation(
+            conversation_id, {"speaker": "butcher", "text": response_text.content}
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
+    return {"status": response_text.content}
 
-    return {"status": response_text}
+    # asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
     """
