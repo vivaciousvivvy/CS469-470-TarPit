@@ -1,7 +1,7 @@
 import os
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
-from vertexai.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel, GenerationConfig
 from datetime import datetime
 
 
@@ -37,14 +37,22 @@ class ProfileGenerator:
 
     def generate_name(self):
         model = GenerativeModel("gemini-2.0-flash-lite")
-        name = model.generate_content(f"Generate me a full name, including middle name, for an individual")
+        generation_config = GenerationConfig(
+            temperature=2
+        )
+        name = model.generate_content(f"Generate me a SINGLE full name, including middle name, for an individual. DO NOT include anything else like suggestions, options, etc in your response.",
+                                      generation_config=generation_config,
+                                      )
         print(name.text)
         return(name.text)
 
     def generate_bio(self, name):
         model = GenerativeModel("gemini-2.0-flash-lite")
+        generation_config = GenerationConfig(
+            temperature=2
+        )
 
-        bio = model.generate_content(f"Generate me a 1-2 paragraph long bio for an individual with the name {name}. \
+        bio = model.generate_content(f"Generate me a SINGLE 1-2 paragraph long bio for an individual with the name {name}. DO NOT include anything else like suggestions, options, etc in your response. \
                                       This individual should be vulnerable, being older in age and/or lonely, \
                                       and desiring a connection. \
                                       This individual should be single, divorced, or widowed. \
@@ -54,7 +62,23 @@ class ProfileGenerator:
                                       The bio must be written in the third person and only cover facts about this person's life. \
                                       The bio should include some approachable hobbies. \
                                       The bio should include why the individual doesnt have a large social media presense. \
-                                      The tone must be as if it is were in a biography.")
+                                      The tone must be as if it is were in a biography.",
+                                      generation_config=generation_config,
+                                      )
+        
+
+        # bio = model.generate_content(f"Generate me a SINGLE profile of a pig butchering victim following this format and do NOT include anything else like options, suggestions, etc in your response: \
+        #                               name: {name} \
+        #                               gender: <gender> \
+        #                               date of birth: <Birthday> \
+        #                               city and state of residence: <city, state> \
+        #                               ethnicity: <ethnicity> \
+        #                               educational background: <Educational Background> \
+        #                               hobbies and interests: <Hobbies and interests> \
+        #                               financial assets: <Financial Assets> \
+        #                               fluency in technical topics and cryptocurrencies: <fluency> \
+        #                               emotional state: <emotional state>",
+        #                               generation_config=generation_config,)
 
         print(bio.text)
         return bio.text
@@ -106,4 +130,4 @@ if __name__ == "__main__":
     generator = ProfileGenerator()
     name = generator.generate_name()
     bio = generator.generate_bio(name)
-    generator.generate_picture(bio, name)
+    # generator.generate_picture(bio, name)
