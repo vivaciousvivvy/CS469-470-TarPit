@@ -169,6 +169,7 @@ def get_firestore_history(session_id: str) -> BaseChatMessageHistory:
 
 @app.post("/chatwoot-webhook")
 async def chatwoot_webhook(request: Request):
+    # Receive data from chatwoot
     data = await request.json()
     print(f"Received Webhook: {data}")
 
@@ -176,12 +177,14 @@ async def chatwoot_webhook(request: Request):
     conversation_id = str(data["id"])  # Ensure ID is a string
     message_content = data["content"]
 
+    # Create a new DB entry if this is a new conversation
     if db.get_person(conversation_id) is None:
         name = generator.generate_name()
         bio = generator.generate_bio(name)
         old_id = db.add_person(name, bio, "test", "test")
         db.change_victim_id(old_id, conversation_id)
 
+    # Generate the response to send back to pig butcher
     try:
         persona = db.get_bio(conversation_id)
 
@@ -195,10 +198,12 @@ async def chatwoot_webhook(request: Request):
             config=config,
         )
 
-        # Store new message in Firestore
+        # Store pig butcher response in DB
         db.add_message_to_conversation(
             conversation_id, {"speaker": "butcher", "text": message_content}
         )
+
+        #Store "victim" (LLM) response in DB
         db.add_message_to_conversation(
             conversation_id, {"speaker": "victim", "text": response_text.content}
         )
@@ -206,6 +211,7 @@ async def chatwoot_webhook(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+    # Send LLM response to be posted in Chatwoot
     asyncio.create_task(send_response_to_chatwoot(conversation_id, response_text.content))
 
     return {"status": response_text.content}
@@ -232,6 +238,7 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         "private": False  # Set to True if you want it to be internal
     }
 
+    # Post request to Chatwoot containing the LLM's generated response
     async with httpx.AsyncClient() as client:
         response = await client.post(url, json=payload, headers=headers)
         print(f"Response sent: {response.status_code}, {response.text}")
