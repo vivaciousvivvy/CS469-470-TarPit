@@ -244,4 +244,4 @@ async def butcher(ctx, *, message: str):
         await ctx.send(f"An error occurred: {e}")
 
 # Run the bot
-bot.run('MTMxNzA0MjQ1MTk4NjUxODAyNg.GUTRiV.FqyBL952n3oonAflBngHY-g6Q3xJ2l_Vhn22fY')
+bot.run('DISCORD_BOT_KEY')
