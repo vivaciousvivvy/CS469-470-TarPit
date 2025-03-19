@@ -23,7 +23,14 @@ load_dotenv()
 # FastAPI app
 app = FastAPI()
 
-# Create the LLM
+# Create the LLM and configure the AI model that will generate chatbot responses.
+"""A Google Generative AI chat model configured for conversational tasks.
+
+Attributes:
+    model (str): The model version to use
+    temperature (float): Controls randomness in responses
+    safety_settings (dict): Configures safety filters for content moderation.
+"""
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -37,6 +44,14 @@ store = {}
 
 # Allow multiple sessions and fetch the session history
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    """Gets or creates a chat history for a user.
+    
+    Args:
+        session_id (str): A unique identifier representing a user's session.
+    
+    Returns:
+        BaseChatMessageHistory: The user's chat history for maintaining conversation context.
+    """
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -67,6 +82,15 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
+
+
+"""A structured prompt template for the AI, combining the persona and instructions.
+
+Attributes:
+    persona (str): The personality and background of the AI.
+    instructions (str): Guidelines for how the AI should respond.
+    MessagesPlaceholder: A placeholder for the chat message history.
+"""
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -81,7 +105,15 @@ prompt = ChatPromptTemplate.from_messages(
 
 # Truncate message history to the last k messages
 def filter_messages(messages, k=10):
-    """Filter the last k messages from the list of messages."""
+    """Keeps only the last k messages in memory to maintain relevant context.
+    
+    Args:
+        messages (list): List of previous chat messages.
+        k (int): Number of messages to retain.
+    
+    Returns:
+        list: Filtered list containing only the last k messages.
+    """
     return messages[-k:]
 
 # Define the chain of runnables
@@ -92,6 +124,13 @@ casual_chain = (
 )
 
 # Create the runnable with message history
+"""A runnable chain that maintains conversation history for each session.
+
+Attributes:
+    casual_chain: The chain of runnables for processing messages.
+    get_session_history: Function to retrieve or create session-specific chat history.
+    input_messages_key (str): The key for accessing messages in the input.
+"""
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,
@@ -99,11 +138,26 @@ with_message_history = RunnableWithMessageHistory(
 )
 
 class MessageRequest(BaseModel):
+    """Represents a user message request with a session ID and message content.
+    
+    Attributes:
+        session_id (str): The unique ID for the chat session.
+        message (str): The message sent by the user.
+    """
     session_id: str
     message: str
 
 @app.post("/chat/")
 async def chat(request: MessageRequest):
+    """API endpoint for chatbot interaction. 
+    It receives user messages and returns chatbot responses.
+    
+    Args:
+        request (MessageRequest): The request object containing session ID and user message.
+    
+    Returns:
+        dict: A dictionary containing the AI-generated response.
+    """
     try:
         config = {"configurable": {"session_id": request.session_id}}
         response = with_message_history.invoke(
@@ -121,6 +175,14 @@ async def chat(request: MessageRequest):
 
 @app.post("/chatwoot-webhook")
 async def chatwoot_webhook(request: Request):
+    """Receive messages from Chatwoot, process them using the AI model, and return a response.
+
+    Args:
+        request (Request): The HTTP request object.
+
+    Returns:
+        dict: A dictionary containing the status of the response.
+    """
     data = await request.json()
     print(f"Received Webhook: {data}")
     # Extract message details
@@ -141,17 +203,29 @@ async def chatwoot_webhook(request: Request):
     return {"status": "success"}
 
 def process_message(message: str) -> str:
-    """
-    Modify or process the message as needed.
+    """Modify or process the message as needed.
     Here, we're just echoing back with a prefix.
+
+    Args:
+        message (str): The incoming message to be processed.
+
+    Returns:
+        str: The processed message with a prefix added.
     """
     return f"Echo: {message}"
 
-CHATWOOT_API_KEY = "<FMI>"
+# Replace with your actual Chatwoot API key
+CHATWOOT_API_KEY = "<FMI>" 
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
-    """
-    Send a message back to Chatwoot in the same conversation.
+    """Send a response message back to a Chatwoot conversation.
+
+    Args:
+        conversation_id (int): The ID of the Chatwoot conversation where the response will be sent.
+        response_text (str): The text of the response to be sent.
+
+    Returns:
+        None: This function does not return anything but prints the HTTP response status and text.
     """
 
     url = ""
@@ -170,4 +244,13 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         print(f"Response sent: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
+    """
+    Start the FastAPI server using Uvicorn.
+
+    Args:
+        None
+
+    Returns:
+        None: This block starts the server and keeps it running.
+    """
     uvicorn.run(app, host="0.0.0.0", port=8000)

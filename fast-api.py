@@ -88,6 +88,14 @@ db = firestore_storage_manager.PeopleDatabase()
 
 # Create the LLM
 def get_llm():
+    """Create and return a Google Generative AI chat model with specific settings.
+
+    Args:
+        None
+
+    Returns:
+        ChatGoogleGenerativeAI: An instance of the chat model configured with safety settings and temperature.
+    """
     return ChatGoogleGenerativeAI(
         model="gemini-1.5-pro-latest",
         temperature=1,
@@ -97,6 +105,15 @@ def get_llm():
     )
 
 def get_prompt(persona: str, instructions: str):
+    """Create a structured prompt for the AI using the persona and instructions.
+
+    Args:
+        persona (str): The personality and background of the AI.
+        instructions (str): Guidelines for how the AI should respond.
+
+    Returns:
+        ChatPromptTemplate: A template for generating prompts with the persona and instructions.
+    """
     return ChatPromptTemplate.from_messages(
         [
             ("system", f"""{persona}
@@ -107,7 +124,15 @@ def get_prompt(persona: str, instructions: str):
     )
 
 def filter_messages(messages, k=10):
-    """Filter the last k messages from the list of messages."""
+    """Keeps only the last k messages in memory to maintain relevant context.
+    
+    Args:
+        messages (list): List of previous chat messages.
+        k (int): Number of messages to retain.
+    
+    Returns:
+        list: Filtered list containing only the last k messages.
+    """
     return messages[-k:]
 
 def get_casual_chain(persona, instructions):
@@ -186,8 +211,14 @@ async def chatwoot_webhook(request: Request):
     return {"status": response_text.content}
 
 async def send_response_to_chatwoot(conversation_id: int, response_text: str):
-    """
-    Send a message back to Chatwoot in the same conversation.
+    """Send a response message back to a Chatwoot conversation.
+
+    Args:
+        conversation_id (int): The ID of the Chatwoot conversation where the response will be sent.
+        response_text (str): The text of the response to be sent.
+
+    Returns:
+        None: This function does not return anything but prints the HTTP response status and text.
     """
 
     url = ""
@@ -206,4 +237,13 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         print(f"Response sent: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
+    """
+    Start the FastAPI server using Uvicorn.
+
+    Args:
+        None
+
+    Returns:
+        None: This block starts the server and keeps it running.
+    """
     uvicorn.run(app, host="0.0.0.0", port=8000)

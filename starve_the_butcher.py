@@ -16,6 +16,13 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnablePassthrough
 
 # Create the LLM
+"""A Google Generative AI chat model configured for conversational tasks.
+
+Attributes:
+    model (str): The model version to use
+    temperature (float): Controls randomness in responses
+    safety_settings (dict): Configures safety filters for content moderation.
+"""
 chat_llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-pro-latest",
     temperature=0,
@@ -30,6 +37,15 @@ store = {}
 
 # Allowws for multiple sessions and fetches the session history
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    """
+    Retrieve or create a chat history for a specific session.
+
+    Args:
+        session_id (str): A unique identifier for the session.
+
+    Returns:
+        BaseChatMessageHistory: The chat history associated with the session.
+    """
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -60,6 +76,15 @@ Act confused if the conversation topic changes.
 Example: "I'm not sure what you mean."
 """
 
+
+
+"""A structured prompt template for the AI, combining the persona and instructions.
+
+Attributes:
+    persona (str): The personality and background of the AI.
+    instructions (str): Guidelines for how the AI should respond.
+    MessagesPlaceholder: A placeholder for the chat message history.
+"""
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -76,33 +101,57 @@ prompt = ChatPromptTemplate.from_messages(
 
 
 def filter_messages(messages, k=10):
-    """Filter the last k messages from the list of messages."""
+    """
+    Keep only the last 'k' messages to maintain relevant context in the conversation.
+
+    Args:
+        messages (list): A list of previous chat messages.
+        k (int): The number of messages to retain.
+
+    Returns:
+        list: A filtered list containing only the last 'k' messages.
+    """
     return messages[-k:]
 
 
 # Define the chain of runnables
-
 casual_chain = (
     RunnablePassthrough.assign(messages=lambda x: filter_messages(x["messages"]))
     | prompt
     | chat_llm
 )
 
-# Create the runnable with message history
+"""A runnable chain that maintains conversation history for each session.
 
+Attributes:
+    casual_chain: The chain of runnables for processing messages.
+    get_session_history: Function to retrieve or create session-specific chat history.
+    input_messages_key (str): The key for accessing messages in the input.
+"""
 with_message_history = RunnableWithMessageHistory(
     casual_chain,
     get_session_history,
     input_messages_key="messages",
 )
 
+# Configuration for the session
 config = {"configurable": {"session_id": "Starve_the_Butcher"}}
 
+# Start an interactive chat loop
 while True:
+    """An interactive chat loop that processes user input and generates AI responses.
+
+    Steps:
+    1. Prompts the user for input.
+    2. Exits if the user presses Enter without typing anything.
+    3. Processes the user input using the AI model and session history.
+    4. Prints the AI's response.
+    """
     user_input = input("Pig Butcher message: ")
     # exit if user hits enter with no input
     if not user_input:
         break
+    # Process the user input and generate a response
     response = with_message_history.invoke(
         {"messages": [HumanMessage(content=user_input)]},
         config=config,
