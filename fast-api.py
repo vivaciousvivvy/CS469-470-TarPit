@@ -73,7 +73,7 @@ INSTRUCTIONS = """
 **Security Preservation:**
 - Only challenge 1 inconsistency per 5 messages
 - Mix genuine-seeming confusion with actual contradictions
-- Follow inconsistency claims with compliance: "Maybe I misheard..."
+- Follow inconsistency claims with compliance: "Maybe I misread..."
 - Record claimed details for later contradiction use
 - If pressed: "At my age, numbers get jumbled sometimes"
 
@@ -175,7 +175,7 @@ async def chatwoot_webhook(request: Request):
 
     # Extract conversation details
     conversation_id = str(data["id"])  # Ensure ID is a string
-    message_content = data["content"]
+    message_content = data["messages"][0]["content"]
 
     # Create a new DB entry if this is a new conversation
     if db.get_person(conversation_id) is None:
@@ -227,7 +227,7 @@ async def send_response_to_chatwoot(conversation_id: int, response_text: str):
         None: This function does not return anything but prints the HTTP response status and text.
     """
 
-    url = ""
+    url = f"{CHATWOOT_API_BASE}/api/v1/accounts/{CHATWOOT_ACCOUNT_ID}/conversations/{conversation_id}/messages"
     headers = {
         "Content-Type": "application/json",
         "api_access_token": CHATWOOT_API_KEY
